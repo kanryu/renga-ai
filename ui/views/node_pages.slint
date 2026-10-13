@@ -155,7 +155,7 @@ component ParameterNodePage inherits NodePage {
 export component ContextParamsNodePage inherits ParameterNodePage {
     in-out property <bool> separated_models: false;
     callback browse_file(string);
-    node_title: "sd_ctx_params"; node_kind: "Model context parameters";
+    node_title: "Load Model"; node_kind: "Model context parameters";
     node_description: "Choose whether the renderer uses a bundled checkpoint or separate model components.";
     section_title: "Model source";
     ModelSourceMode {
@@ -214,25 +214,27 @@ export component SampleParamsNodePage inherits ParameterNodePage {
 }
 
 export component ImageGenParamsNodePage inherits ParameterNodePage {
-    node_title: "Prompt & Image Parameters"; node_kind: "Image generation parameters";
-    node_description: "Set the SDXL prompt, negative prompt, resolution, and sampling request.";
-    section_title: "Generation request";
+    node_title: "Prompt"; node_kind: "Text prompt";
+    node_description: "Set the positive and negative prompts for image generation.";
+    section_title: "Prompt text";
     EditorLabel { x: 28px; y: 260px; label: "Positive Prompt"; height: 92px; }
     MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt; }
     EditorLabel { x: 28px; y: 366px; label: "Negative Prompt"; height: 92px; }
     MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt; }
-    EditorLabel { x: 28px; y: 472px; label: "width"; }
-    EditorField { x: 190px; y: 472px; value <=> AppRouter.width; field_width: 180px; }
-    EditorLabel { x: 390px; y: 472px; label: "height"; }
-    EditorField { x: 500px; y: 472px; value <=> AppRouter.height; field_width: 160px; }
-    EditorLabel { x: 28px; y: 512px; label: "batch_count"; }
-    EditorField { x: 190px; y: 512px; value <=> AppRouter.batch_count; field_width: 180px; }
-    EditorLabel { x: 390px; y: 512px; label: "seed"; }
-    EditorField { x: 500px; y: 512px; value <=> AppRouter.seed; field_width: 160px; }
-    EditorLabel { x: 28px; y: 552px; label: "loras"; visible: root.show_advanced; }
-    EditorField { x: 190px; y: 552px; value <=> AppRouter.loras; field_width: 470px; visible: root.show_advanced; }
-    EditorLabel { x: 28px; y: 592px; label: "hires / cache"; visible: root.show_advanced; }
-    EditorField { x: 190px; y: 592px; value <=> AppRouter.hires_cache; field_width: 470px; visible: root.show_advanced; }
+}
+
+export component LoadDetectorNodePage inherits ParameterNodePage {
+    node_title: "Load Detector"; node_kind: "ADetailer detector";
+    node_description: "Load the face detector used by the E-Detailer pass.";
+    section_title: "Detector configuration";
+    EditorLabel { x: 28px; y: 260px; label: "detector_model"; }
+    EditorField { x: 190px; y: 260px; value <=> AppRouter.detector_model_path; field_width: 470px; }
+    EditorLabel { x: 28px; y: 300px; label: "threads"; }
+    EditorField { x: 190px; y: 300px; value <=> AppRouter.threads; field_width: 180px; }
+    EditorLabel { x: 390px; y: 300px; label: "backend"; }
+    EditorField { x: 500px; y: 300px; value <=> AppRouter.backend; field_width: 160px; }
+    EditorLabel { x: 28px; y: 340px; label: "params_backend"; }
+    EditorField { x: 190px; y: 340px; value <=> AppRouter.backend; field_width: 470px; }
 }
 
 component ProcessNodePage inherits NodePage {
@@ -244,14 +246,40 @@ component ProcessNodePage inherits NodePage {
     Text { x: 28px; y: 320px; text: "Pins accept and produce typed workflow values."; color: #9aa5b5; font-size: 13px; }
 }
 
+export component DetailImageNodePage inherits ProcessNodePage {
+    node_title: "Detail Image"; node_kind: "E-Detailer processing";
+    node_description: "Detect faces and apply the ADetailer inpaint pass, falling back to the original image when no result is produced.";
+    api_signature: "sd.DetailImage(ctx, image, adetailer_params, inpaint_request) -> images";
+    Text { x: 28px; y: 360px; text: "Inpaint parameters"; color: #f5f7fa; font-size: 15px; }
+    EditorLabel { x: 28px; y: 392px; label: "width"; }
+    EditorField { x: 190px; y: 392px; value <=> AppRouter.inpaint_width; field_width: 180px; }
+    EditorLabel { x: 390px; y: 392px; label: "height"; }
+    EditorField { x: 500px; y: 392px; value <=> AppRouter.inpaint_height; field_width: 160px; }
+    EditorLabel { x: 28px; y: 432px; label: "strength"; }
+    EditorField { x: 190px; y: 432px; value <=> AppRouter.inpaint_strength; field_width: 180px; }
+    EditorLabel { x: 28px; y: 472px; label: "detail prompt"; height: 52px; }
+    MultilineEditor { x: 190px; y: 472px; value <=> AppRouter.detail_prompt; }
+    EditorLabel { x: 28px; y: 578px; label: "negative prompt"; height: 52px; }
+    MultilineEditor { x: 190px; y: 578px; value <=> AppRouter.detail_negative_prompt; }
+    EditorLabel { x: 28px; y: 684px; label: "extra AD args"; }
+    EditorField { x: 190px; y: 684px; value <=> AppRouter.detector_extra_args; field_width: 470px; }
+}
+
 export component GenerateImageNodePage inherits ProcessNodePage {
-    node_title: "generate_image"; node_kind: "Image generation";
+    node_title: "Generate Image"; node_kind: "Image generation";
     node_description: "Generate an SD image from SDCTX and image generation parameters.";
     api_signature: "SD_API bool generate_image(sd_ctx_t*, sd_img_gen_params_t*, sd_image_t**, int*)";
+    Text { x: 28px; y: 360px; text: "Rendering"; color: #f5f7fa; font-size: 15px; }
+    EditorLabel { x: 28px; y: 392px; label: "width"; }
+    EditorField { x: 190px; y: 392px; value <=> AppRouter.width; field_width: 180px; }
+    EditorLabel { x: 390px; y: 392px; label: "height"; }
+    EditorField { x: 500px; y: 392px; value <=> AppRouter.height; field_width: 160px; }
+    EditorLabel { x: 28px; y: 432px; label: "batch_count"; }
+    EditorField { x: 190px; y: 432px; value <=> AppRouter.batch_count; field_width: 180px; }
 }
 
 export component SaveWebPNodePage inherits ProcessNodePage {
-    node_title: "SaveWebP"; node_kind: "Image output";
+    node_title: "Save Image"; node_kind: "Image output";
     node_description: "Encode generated image data as a WebP file.";
     api_signature: "sd.SaveWebP(*Image, path, quality) -> bool";
 }

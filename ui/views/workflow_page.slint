@@ -19,28 +19,57 @@ component GridBackground inherits Rectangle {
 component NodePanel inherits Rectangle {
     in property <string> node_title;
     in property <string> node_kind;
-    in property <string> summary_title: "Inputs / Parameters";
     in property <string> summary_line_1: "";
     in property <string> summary_line_2: "";
     in property <string> summary_line_3: "";
+    in property <string> summary_line_4: "";
+    in property <string> summary_line_5: "";
+    in property <string> summary_line_6: "";
+    in property <string> summary_label_1: "";
+    in property <string> summary_label_2: "";
+    in property <string> summary_label_3: "";
+    in property <string> summary_label_4: "";
+    in property <string> summary_label_5: "";
+    in property <string> summary_label_6: "";
+    in property <bool> show_line_labels: false;
+    in property <length> summary_line_1_height: 26px;
+    in property <length> summary_line_2_height: 26px;
+    in property <length> summary_line_3_height: 26px;
+    in property <length> summary_line_4_height: 26px;
+    in property <length> summary_line_5_height: 26px;
+    in property <length> summary_line_6_height: 26px;
+    in property <int> body_line_count: 3;
     in property <int> input_count: 1;
     in property <color> input_1_color: root.accent_color;
     in property <color> input_2_color: root.accent_color;
     in property <color> input_3_color: root.accent_color;
+    in property <string> input_1_label: "";
+    in property <string> input_2_label: "";
+    in property <string> input_3_label: "";
     in property <color> accent_color;
+    in property <color> output_pin_color: root.accent_color;
+    in property <string> output_pin_label: "";
+    in property <bool> show_output_pin: true;
     in-out property <length> node_x: 0px;
     in-out property <length> node_y: 0px;
     in-out property <length> node_width: 230px;
     in-out property <length> node_height: 154px;
     callback open;
     out property <length> in_pin_1_x: root.node_x;
-    out property <length> in_pin_1_y: root.node_y + 58px;
+    out property <length> pin_center_y: root.input_count >= 2 ? root.node_height / 2 + 9px : root.node_height / 2;
+    out property <length> in_pin_1_y: root.node_y + (root.input_count >= 2 ? root.pin_center_y - 28px : root.pin_center_y);
     out property <length> in_pin_2_x: root.node_x;
-    out property <length> in_pin_2_y: root.node_y + 86px;
+    out property <length> in_pin_2_y: root.node_y + root.pin_center_y;
     out property <length> in_pin_3_x: root.node_x;
-    out property <length> in_pin_3_y: root.node_y + 114px;
+    out property <length> in_pin_3_y: root.node_y + root.pin_center_y + 28px;
     out property <length> out_pin_x: root.node_x + root.width;
-    out property <length> out_pin_y: root.node_y + 86px;
+    out property <length> out_pin_y: root.node_y + root.pin_center_y;
+    property <length> row_1_y: root.show_line_labels ? 64px : 50px;
+    property <length> row_2_y: root.show_line_labels ? root.row_1_y + root.summary_line_1_height + 20px : 82px;
+    property <length> row_3_y: root.show_line_labels ? root.row_2_y + root.summary_line_2_height + (root.summary_label_3 != "" ? 20px : 8px) : 114px;
+    property <length> row_4_y: root.show_line_labels ? root.row_3_y + root.summary_line_3_height + (root.summary_label_4 != "" ? 20px : 8px) : 146px;
+    property <length> row_5_y: root.show_line_labels ? root.row_4_y + root.summary_line_4_height + (root.summary_label_5 != "" ? 20px : 8px) : 178px;
+    property <length> row_6_y: root.show_line_labels ? root.row_5_y + root.summary_line_5_height + (root.summary_label_6 != "" ? 20px : 8px) : 210px;
     x: root.node_x;
     y: root.node_y;
     width: root.node_width; height: root.node_height; background: #202024;
@@ -50,22 +79,50 @@ component NodePanel inherits Rectangle {
         background: root.accent_color; border-radius: 8px;
         Text { x: 14px; y: 9px; text: root.node_title; color: #ffffff; font-size: 15px; font-weight: 700; }
     }
-    Text { x: 16px; y: 49px; text: root.summary_title; color: #71717a; font-size: 11px; }
+    Text { x: 16px; y: root.row_1_y - 18px; text: root.summary_label_1; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_1 != ""; }
+    Text { x: 16px; y: root.row_2_y - 18px; text: root.summary_label_2; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_2 != ""; }
+    Text { x: 16px; y: root.row_3_y - 18px; text: root.summary_label_3; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_3 != ""; }
+    Text { x: 16px; y: root.row_4_y - 18px; text: root.summary_label_4; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_4 != ""; }
+    Text { x: 16px; y: root.row_5_y - 18px; text: root.summary_label_5; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_5 != ""; }
+    Text { x: 16px; y: root.row_6_y - 18px; text: root.summary_label_6; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_6 != ""; }
     Rectangle {
-        x: 16px; y: 70px; width: parent.width - 32px; height: 26px;
-        background: #121214; border-radius: 4px;
-        Text { x: 8px; y: 5px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; }
+        x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height;
+        background: #121214; border-radius: 4px; clip: true;
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
     }
     Rectangle {
-        x: 16px; y: 102px; width: parent.width - 32px; height: 26px;
-        background: #121214; border-radius: 4px; visible: root.summary_line_2 != "";
-        Text { x: 8px; y: 5px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; }
+        x: 16px; y: root.row_2_y; width: parent.width - 32px; height: root.summary_line_2_height;
+        background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 2 && root.summary_line_2 != "";
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
     }
-    Text { x: 16px; y: 132px; text: root.summary_line_3; color: #a1a1aa; font-size: 11px; visible: root.summary_line_3 != ""; }
-    if root.input_count >= 1: Rectangle { x: -7px; y: 51px; width: 14px; height: 14px; border-radius: 7px; background: root.input_1_color; }
-    if root.input_count >= 2: Rectangle { x: -7px; y: 79px; width: 14px; height: 14px; border-radius: 7px; background: root.input_2_color; }
-    if root.input_count >= 3: Rectangle { x: -7px; y: 107px; width: 14px; height: 14px; border-radius: 7px; background: root.input_3_color; }
-    Rectangle { x: 223px; y: 79px; width: 14px; height: 14px; border-radius: 7px; background: root.accent_color; }
+    Rectangle {
+        x: 16px; y: root.row_3_y; width: parent.width - 32px; height: root.summary_line_3_height;
+        background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 3 && root.summary_line_3 != "";
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_3; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
+    }
+    Rectangle {
+        x: 16px; y: root.row_4_y; width: parent.width - 32px; height: root.summary_line_4_height;
+        background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 4 && root.summary_line_4 != "";
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_4; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
+    }
+    Rectangle {
+        x: 16px; y: root.row_5_y; width: parent.width - 32px; height: root.summary_line_5_height;
+        background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 5 && root.summary_line_5 != "";
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_5; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
+    }
+    Rectangle {
+        x: 16px; y: root.row_6_y; width: parent.width - 32px; height: root.summary_line_6_height;
+        background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 6 && root.summary_line_6 != "";
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_6; color: #e4e4e7; font-size: 12px; wrap: word-wrap; }
+    }
+    if root.input_count >= 1: Rectangle { x: -7px; y: root.in_pin_1_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_1_color; }
+    if root.input_count >= 2: Rectangle { x: -7px; y: root.in_pin_2_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_2_color; }
+    if root.input_count >= 3: Rectangle { x: -7px; y: root.in_pin_3_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_3_color; }
+    if root.show_output_pin: Rectangle { x: root.node_width - 7px; y: root.out_pin_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.output_pin_color; }
+    Text { x: -112px; y: root.in_pin_1_y - root.node_y - 8px; width: 98px; text: root.input_1_label; color: root.input_1_color; font-size: 11px; horizontal-alignment: right; visible: root.input_1_label != ""; }
+    Text { x: -112px; y: root.in_pin_2_y - root.node_y - 8px; width: 98px; text: root.input_2_label; color: root.input_2_color; font-size: 11px; horizontal-alignment: right; visible: root.input_2_label != ""; }
+    Text { x: -112px; y: root.in_pin_3_y - root.node_y - 8px; width: 98px; text: root.input_3_label; color: root.input_3_color; font-size: 11px; horizontal-alignment: right; visible: root.input_3_label != ""; }
+    Text { x: root.node_width + 14px; y: root.out_pin_y - root.node_y - 8px; width: 90px; text: root.output_pin_label; color: root.output_pin_color; font-size: 11px; visible: root.show_output_pin && root.output_pin_label != ""; }
 }
 
 component BezierWire inherits Path {
@@ -104,13 +161,33 @@ export component WorkflowPage inherits Rectangle {
     in-out property <length> wire_end_x: 0px;
     in-out property <length> wire_end_y: 0px;
     in-out property <bool> ctx_to_generate <=> WorkflowNodes.ctx_to_generate;
-    in-out property <bool> sample_to_imggen <=> WorkflowNodes.sample_to_imggen;
+    in-out property <bool> sample_to_generate <=> WorkflowNodes.sample_to_generate;
     in-out property <bool> imggen_to_generate <=> WorkflowNodes.imggen_to_generate;
-    in-out property <bool> generate_to_save <=> WorkflowNodes.generate_to_save;
+    in-out property <bool> generate_to_detail <=> WorkflowNodes.generate_to_detail;
     in-out property <bool> wire_menu_visible: false;
     in-out property <int> wire_menu_wire: -1;
     in-out property <length> wire_menu_x: 0px;
     in-out property <length> wire_menu_y: 0px;
+    in-out property <int> pressed_node: -1;
+    property <bool> cursor_over_title:
+        (drag_surface.mouse-x >= ctx_node.node_x && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width && drag_surface.mouse-y >= ctx_node.node_y && drag_surface.mouse-y <= ctx_node.node_y + 38px)
+        || (drag_surface.mouse-x >= generate_node.node_x && drag_surface.mouse-x <= generate_node.node_x + generate_node.width && drag_surface.mouse-y >= generate_node.node_y && drag_surface.mouse-y <= generate_node.node_y + 38px)
+        || (drag_surface.mouse-x >= sample_node.node_x && drag_surface.mouse-x <= sample_node.node_x + sample_node.width && drag_surface.mouse-y >= sample_node.node_y && drag_surface.mouse-y <= sample_node.node_y + 38px)
+        || (drag_surface.mouse-x >= imggen_node.node_x && drag_surface.mouse-x <= imggen_node.node_x + imggen_node.width && drag_surface.mouse-y >= imggen_node.node_y && drag_surface.mouse-y <= imggen_node.node_y + 38px)
+        || (drag_surface.mouse-x >= save_node.node_x && drag_surface.mouse-x <= save_node.node_x + save_node.width && drag_surface.mouse-y >= save_node.node_y && drag_surface.mouse-y <= save_node.node_y + 38px)
+        || (drag_surface.mouse-x >= detector_node.node_x && drag_surface.mouse-x <= detector_node.node_x + detector_node.width && drag_surface.mouse-y >= detector_node.node_y && drag_surface.mouse-y <= detector_node.node_y + 38px)
+        || (drag_surface.mouse-x >= detail_node.node_x && drag_surface.mouse-x <= detail_node.node_x + detail_node.width && drag_surface.mouse-y >= detail_node.node_y && drag_surface.mouse-y <= detail_node.node_y + 38px);
+    property <bool> cursor_over_input:
+        (drag_surface.mouse-x >= ctx_node.node_x + 16px && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width - 16px && drag_surface.mouse-y >= ctx_node.node_y + 50px && drag_surface.mouse-y <= ctx_node.node_y + 76px)
+        || (drag_surface.mouse-x >= ctx_node.node_x + 16px && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width - 16px && drag_surface.mouse-y >= ctx_node.node_y + 82px && drag_surface.mouse-y <= ctx_node.node_y + 108px)
+        || (drag_surface.mouse-x >= generate_node.node_x + 16px && drag_surface.mouse-x <= generate_node.node_x + generate_node.width - 16px && drag_surface.mouse-y >= generate_node.node_y + 50px && drag_surface.mouse-y <= generate_node.node_y + 76px)
+        || (drag_surface.mouse-x >= generate_node.node_x + 16px && drag_surface.mouse-x <= generate_node.node_x + generate_node.width - 16px && drag_surface.mouse-y >= generate_node.node_y + 82px && drag_surface.mouse-y <= generate_node.node_y + 108px)
+        || (drag_surface.mouse-x >= sample_node.node_x + 16px && drag_surface.mouse-x <= sample_node.node_x + sample_node.width - 16px && drag_surface.mouse-y >= sample_node.node_y + 50px && drag_surface.mouse-y <= sample_node.node_y + 76px)
+        || (drag_surface.mouse-x >= sample_node.node_x + 16px && drag_surface.mouse-x <= sample_node.node_x + sample_node.width - 16px && drag_surface.mouse-y >= sample_node.node_y + 82px && drag_surface.mouse-y <= sample_node.node_y + 108px)
+        || (drag_surface.mouse-x >= imggen_node.node_x + 16px && drag_surface.mouse-x <= imggen_node.node_x + imggen_node.width - 16px && drag_surface.mouse-y >= imggen_node.node_y + 50px && drag_surface.mouse-y <= imggen_node.node_y + 76px)
+        || (drag_surface.mouse-x >= imggen_node.node_x + 16px && drag_surface.mouse-x <= imggen_node.node_x + imggen_node.width - 16px && drag_surface.mouse-y >= imggen_node.node_y + 82px && drag_surface.mouse-y <= imggen_node.node_y + 108px)
+        || (drag_surface.mouse-x >= save_node.node_x + 16px && drag_surface.mouse-x <= save_node.node_x + save_node.width - 16px && drag_surface.mouse-y >= save_node.node_y + 50px && drag_surface.mouse-y <= save_node.node_y + 76px)
+        || (drag_surface.mouse-x >= save_node.node_x + 16px && drag_surface.mouse-x <= save_node.node_x + save_node.width - 16px && drag_surface.mouse-y >= save_node.node_y + 82px && drag_surface.mouse-y <= save_node.node_y + 108px);
     background: #171a20;
     GridBackground { width: parent.width; height: parent.height; }
     Text { x: 18px; y: 14px; text: "Workflow / Untitled"; color: #f5f7fa; font-size: 18px; }
@@ -119,38 +196,54 @@ export component WorkflowPage inherits Rectangle {
         visible: root.ctx_to_generate;
         start_x: ctx_node.out_pin_x;
         start_y: ctx_node.out_pin_y;
-        end_x: generate_node.in_pin_1_x;
-        end_y: generate_node.in_pin_1_y;
-        wire_color: #d58cff;
+        end_x: generate_node.in_pin_2_x;
+        end_y: generate_node.in_pin_2_y;
+        wire_color: #fb923c;
     }
     BezierWire {
-        visible: root.generate_to_save;
+        visible: root.generate_to_detail;
         start_x: generate_node.out_pin_x;
         start_y: generate_node.out_pin_y;
-        end_x: save_node.in_pin_1_x;
-        end_y: save_node.in_pin_1_y;
-        wire_color: #65d6a0;
+        end_x: detail_node.in_pin_1_x;
+        end_y: detail_node.in_pin_1_y;
+        wire_color: #65a9ff;
     }
     BezierWire {
         visible: root.imggen_to_generate;
         start_x: imggen_node.out_pin_x;
         start_y: imggen_node.out_pin_y;
-        end_x: generate_node.in_pin_2_x;
-        end_y: generate_node.in_pin_2_y;
-        wire_color: #65d6a0;
+        end_x: generate_node.in_pin_1_x;
+        end_y: generate_node.in_pin_1_y;
+        wire_color: #facc15;
     }
     BezierWire {
-        visible: root.sample_to_imggen;
+        visible: root.sample_to_generate;
         start_x: sample_node.out_pin_x;
         start_y: sample_node.out_pin_y;
-        end_x: imggen_node.in_pin_1_x;
-        end_y: imggen_node.in_pin_1_y;
+        end_x: generate_node.in_pin_3_x;
+        end_y: generate_node.in_pin_3_y;
+        wire_color: #a78bfa;
+    }
+    BezierWire {
+        visible: true;
+        start_x: detector_node.out_pin_x;
+        start_y: detector_node.out_pin_y;
+        end_x: detail_node.in_pin_2_x;
+        end_y: detail_node.in_pin_2_y;
+        wire_color: #fb923c;
+    }
+    BezierWire {
+        visible: true;
+        start_x: detail_node.out_pin_x;
+        start_y: detail_node.out_pin_y;
+        end_x: save_node.in_pin_1_x;
+        end_y: save_node.in_pin_1_y;
         wire_color: #65a9ff;
     }
     drag_surface := TouchArea {
         width: parent.width;
         height: parent.height;
-        mouse-cursor: grab;
+        mouse-cursor: root.wire_menu_visible ? default : (root.cursor_over_title ? move : (root.cursor_over_input ? pointer : default));
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
@@ -158,13 +251,13 @@ export component WorkflowPage inherits Rectangle {
                     // The four current wires are routed between these node
                     // bounding boxes. This hit test deliberately includes a
                     // small margin so the thin Bezier stroke is easy to hit.
-                    if root.ctx_to_generate && drag_surface.mouse-x >= ctx_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (ctx_node.out_pin_y < generate_node.in_pin_1_y ? ctx_node.out_pin_y : generate_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (ctx_node.out_pin_y > generate_node.in_pin_1_y ? ctx_node.out_pin_y : generate_node.in_pin_1_y) + 14px {
+                    if root.ctx_to_generate && drag_surface.mouse-x >= ctx_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (ctx_node.out_pin_y < generate_node.in_pin_2_y ? ctx_node.out_pin_y : generate_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (ctx_node.out_pin_y > generate_node.in_pin_2_y ? ctx_node.out_pin_y : generate_node.in_pin_2_y) + 14px {
                         root.wire_menu_wire = 0;
-                    } else if root.sample_to_imggen && drag_surface.mouse-x >= sample_node.out_pin_x - 12px && drag_surface.mouse-x <= imggen_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (sample_node.out_pin_y < imggen_node.in_pin_1_y ? sample_node.out_pin_y : imggen_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (sample_node.out_pin_y > imggen_node.in_pin_1_y ? sample_node.out_pin_y : imggen_node.in_pin_1_y) + 14px {
+                    } else if root.sample_to_generate && drag_surface.mouse-x >= sample_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_3_x + 12px && drag_surface.mouse-y >= (sample_node.out_pin_y < generate_node.in_pin_3_y ? sample_node.out_pin_y : generate_node.in_pin_3_y) - 14px && drag_surface.mouse-y <= (sample_node.out_pin_y > generate_node.in_pin_3_y ? sample_node.out_pin_y : generate_node.in_pin_3_y) + 14px {
                         root.wire_menu_wire = 2;
-                    } else if root.imggen_to_generate && drag_surface.mouse-x >= imggen_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (imggen_node.out_pin_y < generate_node.in_pin_2_y ? imggen_node.out_pin_y : generate_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (imggen_node.out_pin_y > generate_node.in_pin_2_y ? imggen_node.out_pin_y : generate_node.in_pin_2_y) + 14px {
+                    } else if root.imggen_to_generate && drag_surface.mouse-x >= imggen_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (imggen_node.out_pin_y < generate_node.in_pin_1_y ? imggen_node.out_pin_y : generate_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (imggen_node.out_pin_y > generate_node.in_pin_1_y ? imggen_node.out_pin_y : generate_node.in_pin_1_y) + 14px {
                         root.wire_menu_wire = 3;
-                    } else if root.generate_to_save && drag_surface.mouse-x >= generate_node.out_pin_x - 12px && drag_surface.mouse-x <= save_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (generate_node.out_pin_y < save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (generate_node.out_pin_y > save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) + 14px {
+                    } else if root.generate_to_detail && drag_surface.mouse-x >= generate_node.out_pin_x - 12px && drag_surface.mouse-x <= detail_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (generate_node.out_pin_y < detail_node.in_pin_1_y ? generate_node.out_pin_y : detail_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (generate_node.out_pin_y > detail_node.in_pin_1_y ? generate_node.out_pin_y : detail_node.in_pin_1_y) + 14px {
                         root.wire_menu_wire = 1;
                     } else {
                         root.wire_menu_wire = -1;
@@ -176,41 +269,81 @@ export component WorkflowPage inherits Rectangle {
                     }
                 }
                 if event.button != PointerEventButton.left { return; }
-                root.dragging = true;
+                root.dragging = false;
+                root.pressed_node = -1;
                 root.drag_node = -1;
                 if drag_surface.mouse-x >= ctx_node.node_x && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width && drag_surface.mouse-y >= ctx_node.node_y && drag_surface.mouse-y <= ctx_node.node_y + ctx_node.height {
-                    root.drag_node = 0;
-                    root.drag_offset_x = drag_surface.mouse-x - ctx_node.node_x;
-                    root.drag_offset_y = drag_surface.mouse-y - ctx_node.node_y;
+                    root.pressed_node = 0;
+                    if drag_surface.mouse-y <= ctx_node.node_y + 38px {
+                        root.drag_node = 0;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - ctx_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - ctx_node.node_y;
+                    }
                 } else if drag_surface.mouse-x >= generate_node.node_x && drag_surface.mouse-x <= generate_node.node_x + generate_node.width && drag_surface.mouse-y >= generate_node.node_y && drag_surface.mouse-y <= generate_node.node_y + generate_node.height {
-                    root.drag_node = 1;
-                    root.drag_offset_x = drag_surface.mouse-x - generate_node.node_x;
-                    root.drag_offset_y = drag_surface.mouse-y - generate_node.node_y;
+                    root.pressed_node = 1;
+                    if drag_surface.mouse-y <= generate_node.node_y + 38px {
+                        root.drag_node = 1;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - generate_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - generate_node.node_y;
+                    }
                 } else if drag_surface.mouse-x >= sample_node.node_x && drag_surface.mouse-x <= sample_node.node_x + sample_node.width && drag_surface.mouse-y >= sample_node.node_y && drag_surface.mouse-y <= sample_node.node_y + sample_node.height {
-                    root.drag_node = 2;
-                    root.drag_offset_x = drag_surface.mouse-x - sample_node.node_x;
-                    root.drag_offset_y = drag_surface.mouse-y - sample_node.node_y;
+                    root.pressed_node = 2;
+                    if drag_surface.mouse-y <= sample_node.node_y + 38px {
+                        root.drag_node = 2;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - sample_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - sample_node.node_y;
+                    }
                 } else if drag_surface.mouse-x >= imggen_node.node_x && drag_surface.mouse-x <= imggen_node.node_x + imggen_node.width && drag_surface.mouse-y >= imggen_node.node_y && drag_surface.mouse-y <= imggen_node.node_y + imggen_node.height {
-                    root.drag_node = 3;
-                    root.drag_offset_x = drag_surface.mouse-x - imggen_node.node_x;
-                    root.drag_offset_y = drag_surface.mouse-y - imggen_node.node_y;
+                    root.pressed_node = 3;
+                    if drag_surface.mouse-y <= imggen_node.node_y + 38px {
+                        root.drag_node = 3;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - imggen_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - imggen_node.node_y;
+                    }
                 } else if drag_surface.mouse-x >= save_node.node_x && drag_surface.mouse-x <= save_node.node_x + save_node.width && drag_surface.mouse-y >= save_node.node_y && drag_surface.mouse-y <= save_node.node_y + save_node.height {
-                    root.drag_node = 4;
-                    root.drag_offset_x = drag_surface.mouse-x - save_node.node_x;
-                    root.drag_offset_y = drag_surface.mouse-y - save_node.node_y;
+                    root.pressed_node = 4;
+                    if drag_surface.mouse-y <= save_node.node_y + 38px {
+                        root.drag_node = 4;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - save_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - save_node.node_y;
+                    }
+                } else if drag_surface.mouse-x >= detector_node.node_x && drag_surface.mouse-x <= detector_node.node_x + detector_node.width && drag_surface.mouse-y >= detector_node.node_y && drag_surface.mouse-y <= detector_node.node_y + detector_node.height {
+                    root.pressed_node = 5;
+                    if drag_surface.mouse-y <= detector_node.node_y + 38px {
+                        root.drag_node = 5;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - detector_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - detector_node.node_y;
+                    }
+                } else if drag_surface.mouse-x >= detail_node.node_x && drag_surface.mouse-x <= detail_node.node_x + detail_node.width && drag_surface.mouse-y >= detail_node.node_y && drag_surface.mouse-y <= detail_node.node_y + detail_node.height {
+                    root.pressed_node = 6;
+                    if drag_surface.mouse-y <= detail_node.node_y + 38px {
+                        root.drag_node = 6;
+                        root.dragging = true;
+                        root.drag_offset_x = drag_surface.mouse-x - detail_node.node_x;
+                        root.drag_offset_y = drag_surface.mouse-y - detail_node.node_y;
+                    }
                 }
             }
             if event.kind == PointerEventKind.up {
                 if event.button != PointerEventButton.left { return; }
-                if root.dragging && root.drag_node >= 0 && drag_surface.mouse-x == drag_surface.pressed-x && drag_surface.mouse-y == drag_surface.pressed-y {
-                    if root.drag_node == 0 { WorkflowNodes.open_node("ctx-1"); }
-                    if root.drag_node == 1 { WorkflowNodes.open_node("generate-1"); }
-                    if root.drag_node == 2 { WorkflowNodes.open_node("sample-1"); }
-                    if root.drag_node == 3 { WorkflowNodes.open_node("image-gen-1"); }
-                    if root.drag_node == 4 { WorkflowNodes.open_node("save-webp-1"); }
+                if root.pressed_node >= 0 && root.drag_node < 0 {
+                    if root.pressed_node == 0 { WorkflowNodes.open_node("ctx-1"); }
+                    if root.pressed_node == 1 { WorkflowNodes.open_node("generate-1"); }
+                    if root.pressed_node == 2 { WorkflowNodes.open_node("sample-1"); }
+                    if root.pressed_node == 3 { WorkflowNodes.open_node("image-gen-1"); }
+                    if root.pressed_node == 4 { WorkflowNodes.open_node("save-webp-1"); }
+                    if root.pressed_node == 5 { WorkflowNodes.open_node("detector-1"); }
+                    if root.pressed_node == 6 { WorkflowNodes.open_node("detail-1"); }
                 }
                 root.dragging = false;
                 root.drag_node = -1;
+                root.pressed_node = -1;
             }
         }
         moved => {
@@ -220,36 +353,40 @@ export component WorkflowPage inherits Rectangle {
                 if root.drag_node == 2 { sample_node.node_x = drag_surface.mouse-x - root.drag_offset_x; sample_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
                 if root.drag_node == 3 { imggen_node.node_x = drag_surface.mouse-x - root.drag_offset_x; imggen_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
                 if root.drag_node == 4 { save_node.node_x = drag_surface.mouse-x - root.drag_offset_x; save_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 5 { detector_node.node_x = drag_surface.mouse-x - root.drag_offset_x; detector_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 6 { detail_node.node_x = drag_surface.mouse-x - root.drag_offset_x; detail_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
             }
         }
     }
-    ctx_node := NodePanel { node_x <=> AppRouter.ctx_node_x; node_y <=> AppRouter.ctx_node_y; node_width <=> AppRouter.ctx_node_width; node_height <=> AppRouter.ctx_node_height; node_title: "sd_ctx_params"; node_kind: "Struct input"; summary_line_1: "model: " + AppRouter.checkpoint_path; summary_line_2: "threads: " + AppRouter.threads + " / " + AppRouter.wtype; summary_line_3: "Model context parameters"; accent_color: #d58cff; }
-    generate_node := NodePanel { node_x <=> AppRouter.generate_node_x; node_y <=> AppRouter.generate_node_y; node_width <=> AppRouter.generate_node_width; node_height <=> AppRouter.generate_node_height; node_title: "generate_image"; node_kind: "Image generation"; summary_line_1: "SDCTX + SDIMG"; summary_line_2: "image output: sd_image_t"; summary_line_3: "Stable Diffusion API"; input_count: 2; input_1_color: #d58cff; input_2_color: #65d6a0; accent_color: #65d6a0; }
-    sample_node := NodePanel { node_x <=> AppRouter.sample_node_x; node_y <=> AppRouter.sample_node_y; node_width <=> AppRouter.sample_node_width; node_height <=> AppRouter.sample_node_height; node_title: "Sampler & Scheduler"; node_kind: "Struct input"; summary_line_1: "method: " + AppRouter.sample_method; summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler; summary_line_3: "Sampler parameters"; accent_color: #65a9ff; }
-    imggen_node := NodePanel { node_x <=> AppRouter.imggen_node_x; node_y <=> AppRouter.imggen_node_y; node_width <=> AppRouter.imggen_node_width; node_height <=> AppRouter.imggen_node_height; node_title: "Prompt & Image Parameters"; node_kind: "Struct input"; summary_line_1: "prompt: " + AppRouter.prompt; summary_line_2: "size: " + AppRouter.width + " x " + AppRouter.height; summary_line_3: "Image generation parameters"; accent_color: #65d6a0; }
-    save_node := NodePanel { node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y; node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height; node_title: "SaveWebP"; node_kind: "Image output"; summary_line_1: "image: generated output"; summary_line_2: "format: WebP"; summary_line_3: "Image output"; accent_color: #ffbd66; }
+    ctx_node := NodePanel { node_x <=> AppRouter.ctx_node_x; node_y <=> AppRouter.ctx_node_y; node_width <=> AppRouter.ctx_node_width; node_height <=> AppRouter.ctx_node_height; node_title: "Load Model"; node_kind: "Struct input"; summary_line_1: "model: " + AppRouter.checkpoint_path; summary_line_2: "threads: " + AppRouter.threads + " / " + AppRouter.wtype; summary_line_3: "Model context parameters"; input_count: 0; output_pin_label: "Model"; accent_color: #fb923c; }
+    generate_node := NodePanel { node_x <=> AppRouter.generate_node_x; node_y <=> AppRouter.generate_node_y; node_width <=> AppRouter.generate_node_width; node_height <=> AppRouter.generate_node_height; node_title: "Generate Image"; node_kind: "Image generation"; summary_line_1: "rendering: SDCTX + SDIMG"; summary_line_2: "size: " + AppRouter.width + " x " + AppRouter.height; summary_line_3: "batch count: " + AppRouter.batch_count; input_count: 3; input_1_label: "Prompt"; input_2_label: "Model"; input_3_label: "Sampler"; input_1_color: #facc15; input_2_color: #fb923c; input_3_color: #a78bfa; output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff; }
+    sample_node := NodePanel { node_x <=> AppRouter.sample_node_x; node_y <=> AppRouter.sample_node_y; node_width <=> AppRouter.sample_node_width; node_height <=> AppRouter.sample_node_height; node_title: "Sampler & Scheduler"; node_kind: "Struct input"; summary_line_1: "method: " + AppRouter.sample_method; summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler; summary_line_3: "Sampler parameters"; input_count: 0; output_pin_label: "Sampler"; accent_color: #a78bfa; }
+    imggen_node := NodePanel { node_x <=> AppRouter.imggen_node_x; node_y <=> AppRouter.imggen_node_y; node_width <=> AppRouter.imggen_node_width; node_height <=> AppRouter.imggen_node_height; node_title: "Prompt"; node_kind: "Text prompt"; summary_line_1: AppRouter.prompt; summary_line_2: AppRouter.negative_prompt; summary_line_3: ""; summary_label_1: "Positive Prompt"; summary_label_2: "Negative Prompt"; summary_line_1_height: 64px; summary_line_2_height: 64px; show_line_labels: true; body_line_count: 2; input_count: 0; output_pin_label: "Prompt"; output_pin_color: #facc15; accent_color: #facc15; }
+    save_node := NodePanel { node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y; node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height; node_title: "Save Image"; node_kind: "Image output"; summary_line_1: "image: generated output"; summary_line_2: "format: WebP"; summary_line_3: ""; body_line_count: 2; input_1_label: "Image"; show_output_pin: false; input_1_color: #65a9ff; accent_color: #65a9ff; }
+    detector_node := NodePanel { node_x <=> AppRouter.detector_node_x; node_y <=> AppRouter.detector_node_y; node_width <=> AppRouter.detector_node_width; node_height <=> AppRouter.detector_node_height; node_title: "Load Detector"; node_kind: "ADetailer detector"; summary_line_1: AppRouter.detector_model_path; summary_line_2: "backend: " + AppRouter.backend; summary_line_3: "Face detection model"; input_count: 0; output_pin_label: "Detector"; output_pin_color: #fb923c; accent_color: #fb923c; }
+    detail_node := NodePanel { node_x <=> AppRouter.detail_node_x; node_y <=> AppRouter.detail_node_y; node_width <=> AppRouter.detail_node_width; node_height <=> AppRouter.detail_node_height; node_title: "Detail Image"; node_kind: "E-Detailer processing"; summary_line_1: AppRouter.detail_prompt; summary_line_2: AppRouter.detail_negative_prompt; summary_line_3: "inpaint: " + AppRouter.inpaint_width + " x " + AppRouter.inpaint_height; summary_line_4: "strength: " + AppRouter.inpaint_strength + " / confidence=0.05"; summary_line_5: "mask_blur=4 / inpaint_padding=32"; summary_line_6: AppRouter.detector_extra_args; summary_label_1: "Positive Prompt"; summary_label_2: "Negative Prompt"; summary_line_1_height: 64px; summary_line_2_height: 64px; show_line_labels: true; body_line_count: 6; input_count: 2; input_1_label: "Image"; input_2_label: "Detector"; input_1_color: #65a9ff; input_2_color: #fb923c; output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff; }
     wire_surface := TouchArea {
         visible: root.wire_dragging;
         width: parent.width;
         height: parent.height;
-        mouse-cursor: crosshair;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
         pointer-event(event) => {
             if event.kind == PointerEventKind.up {
                 if event.button != PointerEventButton.left { return; }
                 if root.wire_source == 0 { root.ctx_to_generate = false; }
-                if root.wire_source == 1 { root.generate_to_save = false; }
-                if root.wire_source == 2 { root.sample_to_imggen = false; }
+                if root.wire_source == 1 { root.generate_to_detail = false; }
+                if root.wire_source == 2 { root.sample_to_generate = false; }
                 if root.wire_source == 3 { root.imggen_to_generate = false; }
-                if root.wire_source == 0 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 38px && wire_surface.mouse-y <= generate_node.node_y + 78px {
+                if root.wire_source == 0 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 66px && wire_surface.mouse-y <= generate_node.node_y + 106px {
                     root.ctx_to_generate = true;
                 }
-                if root.wire_source == 1 && wire_surface.mouse-x >= save_node.node_x - 16px && wire_surface.mouse-x <= save_node.node_x + 16px && wire_surface.mouse-y >= save_node.node_y + 66px && wire_surface.mouse-y <= save_node.node_y + 106px {
-                    root.generate_to_save = true;
+                if root.wire_source == 1 && wire_surface.mouse-x >= detail_node.node_x - 16px && wire_surface.mouse-x <= detail_node.node_x + 16px && wire_surface.mouse-y >= detail_node.node_y + 38px && wire_surface.mouse-y <= detail_node.node_y + 78px {
+                    root.generate_to_detail = true;
                 }
-                if root.wire_source == 2 && wire_surface.mouse-x >= imggen_node.node_x - 16px && wire_surface.mouse-x <= imggen_node.node_x + 16px && wire_surface.mouse-y >= imggen_node.node_y + 38px && wire_surface.mouse-y <= imggen_node.node_y + 78px {
-                    root.sample_to_imggen = true;
+                if root.wire_source == 2 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 94px && wire_surface.mouse-y <= generate_node.node_y + 134px {
+                    root.sample_to_generate = true;
                 }
-                if root.wire_source == 3 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 66px && wire_surface.mouse-y <= generate_node.node_y + 106px {
+                if root.wire_source == 3 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 38px && wire_surface.mouse-y <= generate_node.node_y + 78px {
                     root.imggen_to_generate = true;
                 }
                 root.wire_dragging = false;
@@ -263,9 +400,9 @@ export component WorkflowPage inherits Rectangle {
             }
         }
     }
-    TouchArea {
+    ctx_output_pin := TouchArea {
         x: ctx_node.node_x + 210px; y: ctx_node.node_y + 66px; width: 28px; height: 40px;
-        mouse-cursor: crosshair;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
@@ -275,36 +412,54 @@ export component WorkflowPage inherits Rectangle {
                 root.wire_end_x = ctx_node.out_pin_x; root.wire_end_y = ctx_node.out_pin_y;
             }
         }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = ctx_node.node_x + 210px + ctx_output_pin.mouse-x;
+                root.wire_end_y = ctx_node.node_y + 66px + ctx_output_pin.mouse-y;
+            }
+        }
     }
-    TouchArea {
+    generate_output_pin := TouchArea {
         x: generate_node.node_x + 210px; y: generate_node.node_y + 66px; width: 28px; height: 40px;
-        mouse-cursor: crosshair;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.generate_to_save = false;
+                root.generate_to_detail = false;
                 root.wire_dragging = true; root.wire_source = 1;
                 root.wire_start_x = generate_node.out_pin_x; root.wire_start_y = generate_node.out_pin_y;
                 root.wire_end_x = generate_node.out_pin_x; root.wire_end_y = generate_node.out_pin_y;
             }
         }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = generate_node.node_x + 210px + generate_output_pin.mouse-x;
+                root.wire_end_y = generate_node.node_y + 66px + generate_output_pin.mouse-y;
+            }
+        }
     }
-    TouchArea {
+    sample_output_pin := TouchArea {
         x: sample_node.node_x + 210px; y: sample_node.node_y + 66px; width: 28px; height: 40px;
-        mouse-cursor: crosshair;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.sample_to_imggen = false;
+                root.sample_to_generate = false;
                 root.wire_dragging = true; root.wire_source = 2;
                 root.wire_start_x = sample_node.out_pin_x; root.wire_start_y = sample_node.out_pin_y;
                 root.wire_end_x = sample_node.out_pin_x; root.wire_end_y = sample_node.out_pin_y;
             }
         }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = sample_node.node_x + 210px + sample_output_pin.mouse-x;
+                root.wire_end_y = sample_node.node_y + 66px + sample_output_pin.mouse-y;
+            }
+        }
     }
-    TouchArea {
+    imggen_output_pin := TouchArea {
         x: imggen_node.node_x + 210px; y: imggen_node.node_y + 66px; width: 28px; height: 40px;
-        mouse-cursor: crosshair;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
@@ -312,6 +467,12 @@ export component WorkflowPage inherits Rectangle {
                 root.wire_dragging = true; root.wire_source = 3;
                 root.wire_start_x = imggen_node.out_pin_x; root.wire_start_y = imggen_node.out_pin_y;
                 root.wire_end_x = imggen_node.out_pin_x; root.wire_end_y = imggen_node.out_pin_y;
+            }
+        }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = imggen_node.node_x + 210px + imggen_output_pin.mouse-x;
+                root.wire_end_y = imggen_node.node_y + 66px + imggen_output_pin.mouse-y;
             }
         }
     }
@@ -330,10 +491,11 @@ export component WorkflowPage inherits Rectangle {
         background: #252a34; border-width: 1px; border-color: #667085; border-radius: 5px;
         Text { x: 12px; y: 12px; text: "Disconnect wire"; color: #f5f7fa; font-size: 13px; }
         TouchArea {
+            mouse-cursor: default;
             clicked => {
                 if root.wire_menu_wire == 0 { root.ctx_to_generate = false; }
-                if root.wire_menu_wire == 1 { root.generate_to_save = false; }
-                if root.wire_menu_wire == 2 { root.sample_to_imggen = false; }
+                if root.wire_menu_wire == 1 { root.generate_to_detail = false; }
+                if root.wire_menu_wire == 2 { root.sample_to_generate = false; }
                 if root.wire_menu_wire == 3 { root.imggen_to_generate = false; }
                 root.wire_menu_visible = false;
                 root.wire_menu_wire = -1;
