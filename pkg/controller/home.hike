@@ -1,0 +1,9 @@
+package controller
+
+type HomeController struct {
+    PageController
+}
+
+func NewHomeController() *HomeController {
+    return &HomeController{PageController: *NewPageController("Home")}
+}

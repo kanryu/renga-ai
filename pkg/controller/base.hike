@@ -1,0 +1,20 @@
+package controller
+
+// PageController contains the lifecycle state shared by page controllers.
+// The UI callback bridge can later use this state to drive Slint properties.
+type PageController struct {
+    Route string
+    Mounted bool
+}
+
+func NewPageController(route string) *PageController {
+    return &PageController{Route: route, Mounted: false}
+}
+
+func (controller *PageController) OnMount() {
+    controller.Mounted = true
+}
+
+func (controller *PageController) OnUnmount() {
+    controller.Mounted = false
+}

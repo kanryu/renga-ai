@@ -1,0 +1,11 @@
+package controller
+
+// NodeController is the common lifecycle controller for an editable workflow
+// node. Individual node pages can later add model-specific actions here.
+type NodeController struct {
+    PageController
+}
+
+func NewNodeController(route string) *NodeController {
+    return &NodeController{PageController: *NewPageController(route)}
+}

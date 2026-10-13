@@ -1,0 +1,257 @@
+import { Button } from "std-widgets.slint";
+import { AppRouter } from "../renga/router.slint";
+
+component NodePage inherits Rectangle {
+    in property <string> node_title;
+    in property <string> node_kind;
+    in property <string> node_description;
+    background: #20242c;
+    Rectangle {
+        x: 0px; y: 0px; width: 100%; height: 64px; background: #2a303b;
+        Text { x: 24px; y: 18px; text: root.node_title; color: #f5f7fa; font-size: 22px; }
+        Text { x: 24px; y: 43px; text: root.node_kind; color: #aeb7c6; font-size: 11px; }
+    }
+    Rectangle {
+        x: 672px; y: 14px; width: 34px; height: 34px;
+        border-radius: 17px; background: #454d5b;
+        Text { text: "×"; color: #ffffff; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; }
+        TouchArea { clicked => { AppRouter.navigate("Workflow"); } }
+    }
+    Button {
+        x: 540px; y: 14px; width: 118px; height: 34px;
+        text: "Cancel";
+        clicked => { WorkflowNodes.cancel_edit(); }
+    }
+    Text { x: 28px; y: 104px; text: root.node_description; color: #d7dce5; font-size: 15px; }
+    Rectangle { x: 28px; y: 142px; width: 664px; height: 1px; background: #414957; }
+    Text { x: 28px; y: 166px; text: "Node parameters"; color: #f5f7fa; font-size: 16px; }
+    Text { x: 28px; y: 198px; text: "This editor will be extended with node-specific controls."; color: #9aa5b5; font-size: 13px; }
+}
+
+export component PromptNodePage inherits NodePage {
+    node_title: "Prompt Node"; node_kind: "Text input node";
+    node_description: "Create and refine the text prompt for the next node.";
+}
+
+export component DiffusionNodePage inherits NodePage {
+    node_title: "Stable Diffusion Node"; node_kind: "Image generation node";
+    node_description: "Configure the image generation model and sampling options.";
+}
+
+export component PreviewNodePage inherits NodePage {
+    node_title: "Image Preview Node"; node_kind: "Output node";
+    node_description: "Inspect the generated image and pass it to another node.";
+}
+
+component ParameterRow inherits Rectangle {
+    in property <string> parameter_name;
+    in property <string> parameter_value;
+    width: 320px;
+    height: 28px;
+    Text { x: 0px; y: 6px; text: root.parameter_name; color: #cbd3df; font-size: 13px; }
+    Rectangle { x: 170px; y: 0px; width: 150px; height: 28px; background: #303744; border-radius: 4px;
+        Text { x: 8px; y: 6px; text: root.parameter_value; color: #f5f7fa; font-size: 12px; }
+    }
+}
+
+component EditorField inherits Rectangle {
+    in-out property <string> value;
+    in property <string> placeholder: "";
+    in property <length> field_width: 300px;
+    in property <color> field_background: #303744;
+    width: root.field_width;
+    height: 32px;
+    background: root.field_background;
+    border-width: 1px;
+    border-color: #465264;
+    border-radius: 4px;
+    TextInput {
+        x: 10px;
+        y: 4px;
+        width: parent.width - 20px;
+        height: parent.height - 8px;
+        text <=> root.value;
+        color: #f5f7fa;
+        font-size: 13px;
+    }
+}
+
+component MultilineEditor inherits Rectangle {
+    in-out property <string> value;
+    in property <length> field_width: 470px;
+    in property <length> field_height: 92px;
+    width: root.field_width;
+    height: root.field_height;
+    background: #303744;
+    border-width: 1px;
+    border-color: #465264;
+    border-radius: 4px;
+    TextEdit {
+        x: 8px;
+        y: 6px;
+        width: parent.width - 16px;
+        height: parent.height - 12px;
+        text <=> root.value;
+        wrap: word-wrap;
+        font-size: 13px;
+        placeholder-text: "Enter prompt...";
+    }
+}
+
+component EditorLabel inherits Rectangle {
+    in property <string> label;
+    width: 150px;
+    height: 32px;
+    Text { x: 0px; y: 8px; text: root.label; color: #cbd3df; font-size: 13px; }
+}
+
+component FilePickerField inherits Rectangle {
+    in-out property <string> value;
+    in property <string> field_key;
+    in property <color> field_background: #263c3c;
+    width: 580px;
+    height: 32px;
+    EditorField {
+        x: 0px;
+        y: 0px;
+        value <=> root.value;
+        field_width: 460px;
+        field_background: root.field_background;
+    }
+    Button {
+        x: 470px;
+        y: 0px;
+        width: 110px;
+        height: 32px;
+        text: "Browse...";
+        clicked => { AppRouter.open_file(root.field_key); }
+    }
+}
+
+component ModelSourceMode inherits Rectangle {
+    in property <string> mode_title;
+    in property <string> mode_description;
+    in property <bool> selected: false;
+    callback choose;
+    width: 300px;
+    height: 68px;
+    background: root.selected ? #3d618b : #29313d;
+    border-width: 1px;
+    border-color: root.selected ? #9acbff : #465264;
+    border-radius: 6px;
+    Text { x: 12px; y: 10px; text: root.mode_title; color: #f5f7fa; font-size: 13px; font-weight: 700; }
+    Text { x: 12px; y: 34px; text: root.mode_description; color: #aeb7c6; font-size: 11px; }
+    TouchArea { clicked => { root.choose(); } }
+}
+
+component ParameterNodePage inherits NodePage {
+    in-out property <bool> show_advanced: false;
+    in property <string> section_title: "Standard parameters";
+    Text { x: 28px; y: 232px; text: root.section_title; color: #f5f7fa; font-size: 15px; }
+    Button { x: 540px; y: 228px; text: "Show Advanced"; visible: !root.show_advanced; clicked => { root.show_advanced = true; } }
+    Button { x: 540px; y: 228px; text: "Hide Advanced"; visible: root.show_advanced; clicked => { root.show_advanced = false; } }
+}
+
+export component ContextParamsNodePage inherits ParameterNodePage {
+    in-out property <bool> separated_models: false;
+    callback browse_file(string);
+    node_title: "sd_ctx_params"; node_kind: "Model context parameters";
+    node_description: "Choose whether the renderer uses a bundled checkpoint or separate model components.";
+    section_title: "Model source";
+    ModelSourceMode {
+        x: 28px; y: 260px;
+        mode_title: "Checkpoint (bundled)";
+        mode_description: "SDXL / Illustrious style checkpoint";
+        selected: AppRouter.separated_models == "false";
+        choose => { AppRouter.separated_models = "false"; }
+    }
+    ModelSourceMode {
+        x: 346px; y: 260px;
+        mode_title: "Separated components";
+        mode_description: "Diffusion model + VAE + text encoders";
+        selected: AppRouter.separated_models == "true";
+        choose => { AppRouter.separated_models = "true"; }
+    }
+    if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 350px; label: "checkpoint_path"; }
+    if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 350px; field_key: "checkpoint_path"; value <=> AppRouter.checkpoint_path; }
+    if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 390px; label: "external_vae"; }
+    if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 390px; field_key: "external_vae_path"; value <=> AppRouter.external_vae_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 350px; label: "diffusion_model"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 350px; field_key: "diffusion_model_path"; value <=> AppRouter.diffusion_model_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 390px; label: "vae_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 390px; field_key: "vae_path"; value <=> AppRouter.vae_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "clip_l_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "clip_l_path"; value <=> AppRouter.clip_l_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 470px; label: "t5xxl_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 470px; field_key: "t5xxl_path"; value <=> AppRouter.t5xxl_path; }
+    EditorLabel { x: 28px; y: 510px; label: "backend"; }
+    EditorField { x: 190px; y: 510px; value <=> AppRouter.backend; field_width: 470px; }
+    EditorLabel { x: 28px; y: 550px; label: "threads"; }
+    EditorField { x: 190px; y: 550px; value <=> AppRouter.threads; field_width: 180px; }
+    EditorLabel { x: 390px; y: 550px; label: "type"; }
+    EditorField { x: 500px; y: 550px; value <=> AppRouter.wtype; field_width: 160px; }
+    EditorLabel { x: 28px; y: 590px; label: "flash_attn"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 590px; value <=> AppRouter.flash_attn; field_width: 180px; visible: root.show_advanced; }
+    EditorLabel { x: 390px; y: 590px; label: "max_vram"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 590px; value <=> AppRouter.max_vram; field_width: 160px; visible: root.show_advanced; }
+}
+
+export component SampleParamsNodePage inherits ParameterNodePage {
+    node_title: "Sampler & Scheduler"; node_kind: "Sampler parameters";
+    node_description: "Choose the sampler and guidance values for generation.";
+    EditorLabel { x: 28px; y: 260px; label: "sample_method"; }
+    EditorField { x: 190px; y: 260px; value <=> AppRouter.sample_method; field_width: 180px; }
+    EditorLabel { x: 28px; y: 300px; label: "scheduler"; }
+    EditorField { x: 190px; y: 300px; value <=> AppRouter.scheduler; field_width: 180px; }
+    EditorLabel { x: 28px; y: 340px; label: "sample_steps"; }
+    EditorField { x: 190px; y: 340px; value <=> AppRouter.sample_steps; field_width: 180px; }
+    EditorLabel { x: 350px; y: 260px; label: "eta"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 260px; value <=> AppRouter.eta; field_width: 160px; visible: root.show_advanced; }
+    EditorLabel { x: 350px; y: 300px; label: "flow_shift"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 300px; value <=> AppRouter.flow_shift; field_width: 160px; visible: root.show_advanced; }
+    EditorLabel { x: 350px; y: 340px; label: "custom_sigmas"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 340px; value <=> AppRouter.custom_sigmas; field_width: 160px; visible: root.show_advanced; }
+}
+
+export component ImageGenParamsNodePage inherits ParameterNodePage {
+    node_title: "Prompt & Image Parameters"; node_kind: "Image generation parameters";
+    node_description: "Set the SDXL prompt, negative prompt, resolution, and sampling request.";
+    section_title: "Generation request";
+    EditorLabel { x: 28px; y: 260px; label: "Positive Prompt"; height: 92px; }
+    MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt; }
+    EditorLabel { x: 28px; y: 366px; label: "Negative Prompt"; height: 92px; }
+    MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt; }
+    EditorLabel { x: 28px; y: 472px; label: "width"; }
+    EditorField { x: 190px; y: 472px; value <=> AppRouter.width; field_width: 180px; }
+    EditorLabel { x: 390px; y: 472px; label: "height"; }
+    EditorField { x: 500px; y: 472px; value <=> AppRouter.height; field_width: 160px; }
+    EditorLabel { x: 28px; y: 512px; label: "batch_count"; }
+    EditorField { x: 190px; y: 512px; value <=> AppRouter.batch_count; field_width: 180px; }
+    EditorLabel { x: 390px; y: 512px; label: "seed"; }
+    EditorField { x: 500px; y: 512px; value <=> AppRouter.seed; field_width: 160px; }
+    EditorLabel { x: 28px; y: 552px; label: "loras"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 552px; value <=> AppRouter.loras; field_width: 470px; visible: root.show_advanced; }
+    EditorLabel { x: 28px; y: 592px; label: "hires / cache"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 592px; value <=> AppRouter.hires_cache; field_width: 470px; visible: root.show_advanced; }
+}
+
+component ProcessNodePage inherits NodePage {
+    in property <string> api_signature;
+    Text { x: 28px; y: 232px; text: "Stable Diffusion API"; color: #f5f7fa; font-size: 15px; }
+    Rectangle { x: 28px; y: 262px; width: 664px; height: 34px; background: #303744; border-radius: 4px;
+        Text { x: 12px; y: 8px; text: root.api_signature; color: #cbd3df; font-size: 12px; }
+    }
+    Text { x: 28px; y: 320px; text: "Pins accept and produce typed workflow values."; color: #9aa5b5; font-size: 13px; }
+}
+
+export component GenerateImageNodePage inherits ProcessNodePage {
+    node_title: "generate_image"; node_kind: "Image generation";
+    node_description: "Generate an SD image from SDCTX and image generation parameters.";
+    api_signature: "SD_API bool generate_image(sd_ctx_t*, sd_img_gen_params_t*, sd_image_t**, int*)";
+}
+
+export component SaveWebPNodePage inherits ProcessNodePage {
+    node_title: "SaveWebP"; node_kind: "Image output";
+    node_description: "Encode generated image data as a WebP file.";
+    api_signature: "sd.SaveWebP(*Image, path, quality) -> bool";
+}

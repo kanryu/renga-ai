@@ -1,0 +1,9 @@
+package controller
+
+type SettingsController struct {
+    PageController
+}
+
+func NewSettingsController() *SettingsController {
+    return &SettingsController{PageController: *NewPageController("Settings")}
+}

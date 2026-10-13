@@ -1,0 +1,6 @@
+# Renga AI build artifacts
+/cmd/renga-ai/renga-ai.exe
+/cmd/renga-ai/slint_cflat.dll
+
+# Local workflow state
+/renga-workflow.json

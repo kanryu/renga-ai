@@ -1,0 +1,9 @@
+package controller
+
+type WorkflowController struct {
+    PageController
+}
+
+func NewWorkflowController() *WorkflowController {
+    return &WorkflowController{PageController: *NewPageController("Workflow")}
+}

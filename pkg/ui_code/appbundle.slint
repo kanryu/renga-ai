@@ -1,0 +1,765 @@
+﻿import { Button, TextEdit, VerticalBox, ListView } from "std-widgets.slint";
+
+// --- ui/renga/router.slint ---
+export global AppRouter {
+    in-out property <string> current_page: "Workflow";
+    in-out property <length> ctx_node_x: 40px;
+    in-out property <length> ctx_node_y: 120px;
+    in-out property <length> generate_node_x: 500px;
+    in-out property <length> generate_node_y: 120px;
+    in-out property <length> sample_node_x: 50px;
+    in-out property <length> sample_node_y: 480px;
+    in-out property <length> imggen_node_x: 320px;
+    in-out property <length> imggen_node_y: 390px;
+    in-out property <length> save_node_x: 920px;
+    in-out property <length> save_node_y: 125px;
+    in-out property <length> ctx_node_width: 230px;
+    in-out property <length> ctx_node_height: 154px;
+    in-out property <length> sample_node_width: 230px;
+    in-out property <length> sample_node_height: 154px;
+    in-out property <length> imggen_node_width: 230px;
+    in-out property <length> imggen_node_height: 154px;
+    in-out property <length> generate_node_width: 230px;
+    in-out property <length> generate_node_height: 154px;
+    in-out property <length> save_node_width: 230px;
+    in-out property <length> save_node_height: 154px;
+    in-out property <string> checkpoint_path: "Illustrious-XL-v2.0.safetensors";
+    in-out property <string> diffusion_model_path: "sdxl-unet.safetensors";
+    in-out property <string> external_vae_path: "Optional / embedded";
+    in-out property <string> vae_path: "sdxl-vae.safetensors";
+    in-out property <string> clip_l_path: "clip_l.safetensors";
+    in-out property <string> t5xxl_path: "t5xxl_fp16.safetensors";
+    in-out property <string> separated_models: "false";
+    in-out property <string> backend: "diffusion=cuda0,detector=cuda0";
+    in-out property <string> threads: "Auto";
+    in-out property <string> wtype: "FP16";
+    in-out property <string> flash_attn: "false";
+    in-out property <string> max_vram: "Automatic";
+    in-out property <string> sample_method: "Euler";
+    in-out property <string> scheduler: "Karras";
+    in-out property <string> sample_steps: "20";
+    in-out property <string> eta: "0.0";
+    in-out property <string> flow_shift: "1.0";
+    in-out property <string> custom_sigmas: "Default";
+    in-out property <string> prompt: "masterpiece, best quality, highres, detailed background";
+    in-out property <string> negative_prompt: "blurry, low quality";
+    in-out property <string> width: "1024";
+    in-out property <string> height: "1344";
+    in-out property <string> batch_count: "1";
+    in-out property <string> seed: "Random";
+    in-out property <string> loras: "None";
+    in-out property <string> hires_cache: "Default";
+    callback navigate(string);
+    callback open_file(string);
+    callback save_workflow();
+    navigate(route) => { current_page = route; }
+}
+
+export global WorkflowNodes {
+    in-out property <[string]> node_ids: [];
+    in-out property <[string]> node_types: [];
+    in-out property <string> selected_id: "";
+    in-out property <bool> ctx_to_generate: true;
+    in-out property <bool> sample_to_imggen: true;
+    in-out property <bool> imggen_to_generate: true;
+    in-out property <bool> generate_to_save: true;
+    callback open_node(string);
+    callback cancel_edit();
+}
+
+// --- ui/views/home_page.slint ---
+component HomePage inherits Rectangle {
+    
+    VerticalBox {
+        alignment: center;
+        spacing: 12px;
+        Text { text: "Renga AI"; font-size: 28px; horizontal-alignment: center; }
+        Text { text: "Multimodal AI Workflow Studio"; horizontal-alignment: center; }
+        Button { text: "Open Workflow"; clicked => { AppRouter.navigate("Workflow"); } }
+        Button { text: "Model Library"; clicked => { AppRouter.navigate("Models"); } }
+        Button { text: "Settings"; clicked => { AppRouter.navigate("Settings"); } }
+    }
+}
+
+// --- ui/views/workflow_page.slint ---
+component GridBackground inherits Rectangle {
+    background: #171a20;
+    Image {
+        width: parent.width;
+        height: parent.height;
+        source: @image-url("E:/Home/src/golang/renga-ai/pkg/ui_code/grid_tile.png");
+        image-fit: preserve;
+        horizontal-alignment: left;
+        vertical-alignment: top;
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+        accessible-role: none;
+    }
+}
+
+component NodePanel inherits Rectangle {
+    in property <string> node_title;
+    in property <string> node_kind;
+    in property <string> summary_title: "Inputs / Parameters";
+    in property <string> summary_line_1: "";
+    in property <string> summary_line_2: "";
+    in property <string> summary_line_3: "";
+    in property <int> input_count: 1;
+    in property <color> input_1_color: root.accent_color;
+    in property <color> input_2_color: root.accent_color;
+    in property <color> input_3_color: root.accent_color;
+    in property <color> accent_color;
+    in-out property <length> node_x: 0px;
+    in-out property <length> node_y: 0px;
+    in-out property <length> node_width: 230px;
+    in-out property <length> node_height: 154px;
+    callback open;
+    out property <length> in_pin_1_x: root.node_x;
+    out property <length> in_pin_1_y: root.node_y + 58px;
+    out property <length> in_pin_2_x: root.node_x;
+    out property <length> in_pin_2_y: root.node_y + 86px;
+    out property <length> in_pin_3_x: root.node_x;
+    out property <length> in_pin_3_y: root.node_y + 114px;
+    out property <length> out_pin_x: root.node_x + root.width;
+    out property <length> out_pin_y: root.node_y + 86px;
+    x: root.node_x;
+    y: root.node_y;
+    width: root.node_width; height: root.node_height; background: #202024;
+    border-width: 1px; border-color: #3f3f46; border-radius: 8px;
+    Rectangle {
+        x: 0px; y: 0px; width: 100%; height: 38px;
+        background: root.accent_color; border-radius: 8px;
+        Text { x: 14px; y: 9px; text: root.node_title; color: #ffffff; font-size: 15px; font-weight: 700; }
+    }
+    Text { x: 16px; y: 49px; text: root.summary_title; color: #71717a; font-size: 11px; }
+    Rectangle {
+        x: 16px; y: 70px; width: parent.width - 32px; height: 26px;
+        background: #121214; border-radius: 4px;
+        Text { x: 8px; y: 5px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; }
+    }
+    Rectangle {
+        x: 16px; y: 102px; width: parent.width - 32px; height: 26px;
+        background: #121214; border-radius: 4px; visible: root.summary_line_2 != "";
+        Text { x: 8px; y: 5px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; }
+    }
+    Text { x: 16px; y: 132px; text: root.summary_line_3; color: #a1a1aa; font-size: 11px; visible: root.summary_line_3 != ""; }
+    if root.input_count >= 1: Rectangle { x: -7px; y: 51px; width: 14px; height: 14px; border-radius: 7px; background: root.input_1_color; }
+    if root.input_count >= 2: Rectangle { x: -7px; y: 79px; width: 14px; height: 14px; border-radius: 7px; background: root.input_2_color; }
+    if root.input_count >= 3: Rectangle { x: -7px; y: 107px; width: 14px; height: 14px; border-radius: 7px; background: root.input_3_color; }
+    Rectangle { x: 223px; y: 79px; width: 14px; height: 14px; border-radius: 7px; background: root.accent_color; }
+}
+
+component BezierWire inherits Path {
+    in property <length> start_x;
+    in property <length> start_y;
+    in property <length> end_x;
+    in property <length> end_y;
+    in property <color> wire_color;
+    x: 0px; y: 0px; width: 2048px; height: 2048px;
+    viewbox-x: 0; viewbox-y: 0; viewbox-width: 2048; viewbox-height: 2048;
+    property <float> sx: root.start_x / 1px;
+    property <float> sy: root.start_y / 1px;
+    property <float> ex: root.end_x / 1px;
+    property <float> ey: root.end_y / 1px;
+    property <float> dist_x: (root.ex > root.sx ? root.ex - root.sx : root.sx - root.ex);
+    property <float> offset: (root.dist_x < 10.0 ? root.dist_x * 0.5 : (root.dist_x * 0.5 > 140.0 ? 140.0 : root.dist_x * 0.5));
+    stroke: root.wire_color;
+    stroke-width: 3.5px;
+    MoveTo { x: root.sx; y: root.sy; }
+    CubicTo {
+        control-1-x: root.sx + root.offset; control-1-y: root.sy;
+        control-2-x: root.ex - root.offset; control-2-y: root.ey;
+        x: root.ex; y: root.ey;
+    }
+}
+
+export component WorkflowPage inherits Rectangle {
+    in-out property <bool> dragging: false;
+    in-out property <int> drag_node: -1;
+    in-out property <length> drag_offset_x: 0px;
+    in-out property <length> drag_offset_y: 0px;
+    in-out property <bool> wire_dragging: false;
+    in-out property <int> wire_source: -1;
+    in-out property <length> wire_start_x: 0px;
+    in-out property <length> wire_start_y: 0px;
+    in-out property <length> wire_end_x: 0px;
+    in-out property <length> wire_end_y: 0px;
+    in-out property <bool> ctx_to_generate <=> WorkflowNodes.ctx_to_generate;
+    in-out property <bool> sample_to_imggen <=> WorkflowNodes.sample_to_imggen;
+    in-out property <bool> imggen_to_generate <=> WorkflowNodes.imggen_to_generate;
+    in-out property <bool> generate_to_save <=> WorkflowNodes.generate_to_save;
+    in-out property <bool> wire_menu_visible: false;
+    in-out property <int> wire_menu_wire: -1;
+    in-out property <length> wire_menu_x: 0px;
+    in-out property <length> wire_menu_y: 0px;
+    background: #171a20;
+    GridBackground { width: parent.width; height: parent.height; }
+    Text { x: 18px; y: 14px; text: "Workflow / Untitled"; color: #f5f7fa; font-size: 18px; }
+    Text { x: 18px; y: 40px; text: "Click a node to edit its parameters"; color: #8f9aaa; font-size: 12px; }
+    BezierWire {
+        visible: root.ctx_to_generate;
+        start_x: ctx_node.out_pin_x;
+        start_y: ctx_node.out_pin_y;
+        end_x: generate_node.in_pin_1_x;
+        end_y: generate_node.in_pin_1_y;
+        wire_color: #d58cff;
+    }
+    BezierWire {
+        visible: root.generate_to_save;
+        start_x: generate_node.out_pin_x;
+        start_y: generate_node.out_pin_y;
+        end_x: save_node.in_pin_1_x;
+        end_y: save_node.in_pin_1_y;
+        wire_color: #65d6a0;
+    }
+    BezierWire {
+        visible: root.imggen_to_generate;
+        start_x: imggen_node.out_pin_x;
+        start_y: imggen_node.out_pin_y;
+        end_x: generate_node.in_pin_2_x;
+        end_y: generate_node.in_pin_2_y;
+        wire_color: #65d6a0;
+    }
+    BezierWire {
+        visible: root.sample_to_imggen;
+        start_x: sample_node.out_pin_x;
+        start_y: sample_node.out_pin_y;
+        end_x: imggen_node.in_pin_1_x;
+        end_y: imggen_node.in_pin_1_y;
+        wire_color: #65a9ff;
+    }
+    drag_surface := TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: grab;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                if event.button == PointerEventButton.right {
+                    // The four current wires are routed between these node
+                    // bounding boxes. This hit test deliberately includes a
+                    // small margin so the thin Bezier stroke is easy to hit.
+                    if root.ctx_to_generate && drag_surface.mouse-x >= ctx_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (ctx_node.out_pin_y < generate_node.in_pin_1_y ? ctx_node.out_pin_y : generate_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (ctx_node.out_pin_y > generate_node.in_pin_1_y ? ctx_node.out_pin_y : generate_node.in_pin_1_y) + 14px {
+                        root.wire_menu_wire = 0;
+                    } else if root.sample_to_imggen && drag_surface.mouse-x >= sample_node.out_pin_x - 12px && drag_surface.mouse-x <= imggen_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (sample_node.out_pin_y < imggen_node.in_pin_1_y ? sample_node.out_pin_y : imggen_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (sample_node.out_pin_y > imggen_node.in_pin_1_y ? sample_node.out_pin_y : imggen_node.in_pin_1_y) + 14px {
+                        root.wire_menu_wire = 2;
+                    } else if root.imggen_to_generate && drag_surface.mouse-x >= imggen_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (imggen_node.out_pin_y < generate_node.in_pin_2_y ? imggen_node.out_pin_y : generate_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (imggen_node.out_pin_y > generate_node.in_pin_2_y ? imggen_node.out_pin_y : generate_node.in_pin_2_y) + 14px {
+                        root.wire_menu_wire = 3;
+                    } else if root.generate_to_save && drag_surface.mouse-x >= generate_node.out_pin_x - 12px && drag_surface.mouse-x <= save_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (generate_node.out_pin_y < save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (generate_node.out_pin_y > save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) + 14px {
+                        root.wire_menu_wire = 1;
+                    } else {
+                        root.wire_menu_wire = -1;
+                    }
+                    if root.wire_menu_wire >= 0 {
+                        root.wire_menu_x = drag_surface.mouse-x;
+                        root.wire_menu_y = drag_surface.mouse-y;
+                        root.wire_menu_visible = true;
+                    }
+                }
+                if event.button != PointerEventButton.left { return; }
+                root.dragging = true;
+                root.drag_node = -1;
+                if drag_surface.mouse-x >= ctx_node.node_x && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width && drag_surface.mouse-y >= ctx_node.node_y && drag_surface.mouse-y <= ctx_node.node_y + ctx_node.height {
+                    root.drag_node = 0;
+                    root.drag_offset_x = drag_surface.mouse-x - ctx_node.node_x;
+                    root.drag_offset_y = drag_surface.mouse-y - ctx_node.node_y;
+                } else if drag_surface.mouse-x >= generate_node.node_x && drag_surface.mouse-x <= generate_node.node_x + generate_node.width && drag_surface.mouse-y >= generate_node.node_y && drag_surface.mouse-y <= generate_node.node_y + generate_node.height {
+                    root.drag_node = 1;
+                    root.drag_offset_x = drag_surface.mouse-x - generate_node.node_x;
+                    root.drag_offset_y = drag_surface.mouse-y - generate_node.node_y;
+                } else if drag_surface.mouse-x >= sample_node.node_x && drag_surface.mouse-x <= sample_node.node_x + sample_node.width && drag_surface.mouse-y >= sample_node.node_y && drag_surface.mouse-y <= sample_node.node_y + sample_node.height {
+                    root.drag_node = 2;
+                    root.drag_offset_x = drag_surface.mouse-x - sample_node.node_x;
+                    root.drag_offset_y = drag_surface.mouse-y - sample_node.node_y;
+                } else if drag_surface.mouse-x >= imggen_node.node_x && drag_surface.mouse-x <= imggen_node.node_x + imggen_node.width && drag_surface.mouse-y >= imggen_node.node_y && drag_surface.mouse-y <= imggen_node.node_y + imggen_node.height {
+                    root.drag_node = 3;
+                    root.drag_offset_x = drag_surface.mouse-x - imggen_node.node_x;
+                    root.drag_offset_y = drag_surface.mouse-y - imggen_node.node_y;
+                } else if drag_surface.mouse-x >= save_node.node_x && drag_surface.mouse-x <= save_node.node_x + save_node.width && drag_surface.mouse-y >= save_node.node_y && drag_surface.mouse-y <= save_node.node_y + save_node.height {
+                    root.drag_node = 4;
+                    root.drag_offset_x = drag_surface.mouse-x - save_node.node_x;
+                    root.drag_offset_y = drag_surface.mouse-y - save_node.node_y;
+                }
+            }
+            if event.kind == PointerEventKind.up {
+                if event.button != PointerEventButton.left { return; }
+                if root.dragging && root.drag_node >= 0 && drag_surface.mouse-x == drag_surface.pressed-x && drag_surface.mouse-y == drag_surface.pressed-y {
+                    if root.drag_node == 0 { WorkflowNodes.open_node("ctx-1"); }
+                    if root.drag_node == 1 { WorkflowNodes.open_node("generate-1"); }
+                    if root.drag_node == 2 { WorkflowNodes.open_node("sample-1"); }
+                    if root.drag_node == 3 { WorkflowNodes.open_node("image-gen-1"); }
+                    if root.drag_node == 4 { WorkflowNodes.open_node("save-webp-1"); }
+                }
+                root.dragging = false;
+                root.drag_node = -1;
+            }
+        }
+        moved => {
+            if drag_surface.pressed && root.drag_node >= 0 {
+                if root.drag_node == 0 { ctx_node.node_x = drag_surface.mouse-x - root.drag_offset_x; ctx_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 1 { generate_node.node_x = drag_surface.mouse-x - root.drag_offset_x; generate_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 2 { sample_node.node_x = drag_surface.mouse-x - root.drag_offset_x; sample_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 3 { imggen_node.node_x = drag_surface.mouse-x - root.drag_offset_x; imggen_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+                if root.drag_node == 4 { save_node.node_x = drag_surface.mouse-x - root.drag_offset_x; save_node.node_y = drag_surface.mouse-y - root.drag_offset_y; }
+            }
+        }
+    }
+    ctx_node := NodePanel { node_x <=> AppRouter.ctx_node_x; node_y <=> AppRouter.ctx_node_y; node_width <=> AppRouter.ctx_node_width; node_height <=> AppRouter.ctx_node_height; node_title: "sd_ctx_params"; node_kind: "Struct input"; summary_line_1: "model: " + AppRouter.checkpoint_path; summary_line_2: "threads: " + AppRouter.threads + " / " + AppRouter.wtype; summary_line_3: "Model context parameters"; accent_color: #d58cff; }
+    generate_node := NodePanel { node_x <=> AppRouter.generate_node_x; node_y <=> AppRouter.generate_node_y; node_width <=> AppRouter.generate_node_width; node_height <=> AppRouter.generate_node_height; node_title: "generate_image"; node_kind: "Image generation"; summary_line_1: "SDCTX + SDIMG"; summary_line_2: "image output: sd_image_t"; summary_line_3: "Stable Diffusion API"; input_count: 2; input_1_color: #d58cff; input_2_color: #65d6a0; accent_color: #65d6a0; }
+    sample_node := NodePanel { node_x <=> AppRouter.sample_node_x; node_y <=> AppRouter.sample_node_y; node_width <=> AppRouter.sample_node_width; node_height <=> AppRouter.sample_node_height; node_title: "Sampler & Scheduler"; node_kind: "Struct input"; summary_line_1: "method: " + AppRouter.sample_method; summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler; summary_line_3: "Sampler parameters"; accent_color: #65a9ff; }
+    imggen_node := NodePanel { node_x <=> AppRouter.imggen_node_x; node_y <=> AppRouter.imggen_node_y; node_width <=> AppRouter.imggen_node_width; node_height <=> AppRouter.imggen_node_height; node_title: "Prompt & Image Parameters"; node_kind: "Struct input"; summary_line_1: "prompt: " + AppRouter.prompt; summary_line_2: "size: " + AppRouter.width + " x " + AppRouter.height; summary_line_3: "Image generation parameters"; accent_color: #65d6a0; }
+    save_node := NodePanel { node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y; node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height; node_title: "SaveWebP"; node_kind: "Image output"; summary_line_1: "image: generated output"; summary_line_2: "format: WebP"; summary_line_3: "Image output"; accent_color: #ffbd66; }
+    wire_surface := TouchArea {
+        visible: root.wire_dragging;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.up {
+                if event.button != PointerEventButton.left { return; }
+                if root.wire_source == 0 { root.ctx_to_generate = false; }
+                if root.wire_source == 1 { root.generate_to_save = false; }
+                if root.wire_source == 2 { root.sample_to_imggen = false; }
+                if root.wire_source == 3 { root.imggen_to_generate = false; }
+                if root.wire_source == 0 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 38px && wire_surface.mouse-y <= generate_node.node_y + 78px {
+                    root.ctx_to_generate = true;
+                }
+                if root.wire_source == 1 && wire_surface.mouse-x >= save_node.node_x - 16px && wire_surface.mouse-x <= save_node.node_x + 16px && wire_surface.mouse-y >= save_node.node_y + 66px && wire_surface.mouse-y <= save_node.node_y + 106px {
+                    root.generate_to_save = true;
+                }
+                if root.wire_source == 2 && wire_surface.mouse-x >= imggen_node.node_x - 16px && wire_surface.mouse-x <= imggen_node.node_x + 16px && wire_surface.mouse-y >= imggen_node.node_y + 38px && wire_surface.mouse-y <= imggen_node.node_y + 78px {
+                    root.sample_to_imggen = true;
+                }
+                if root.wire_source == 3 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 66px && wire_surface.mouse-y <= generate_node.node_y + 106px {
+                    root.imggen_to_generate = true;
+                }
+                root.wire_dragging = false;
+                root.wire_source = -1;
+            }
+        }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = wire_surface.mouse-x;
+                root.wire_end_y = wire_surface.mouse-y;
+            }
+        }
+    }
+    TouchArea {
+        x: ctx_node.node_x + 210px; y: ctx_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.ctx_to_generate = false;
+                root.wire_dragging = true; root.wire_source = 0;
+                root.wire_start_x = ctx_node.out_pin_x; root.wire_start_y = ctx_node.out_pin_y;
+                root.wire_end_x = ctx_node.out_pin_x; root.wire_end_y = ctx_node.out_pin_y;
+            }
+        }
+    }
+    TouchArea {
+        x: generate_node.node_x + 210px; y: generate_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.generate_to_save = false;
+                root.wire_dragging = true; root.wire_source = 1;
+                root.wire_start_x = generate_node.out_pin_x; root.wire_start_y = generate_node.out_pin_y;
+                root.wire_end_x = generate_node.out_pin_x; root.wire_end_y = generate_node.out_pin_y;
+            }
+        }
+    }
+    TouchArea {
+        x: sample_node.node_x + 210px; y: sample_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.sample_to_imggen = false;
+                root.wire_dragging = true; root.wire_source = 2;
+                root.wire_start_x = sample_node.out_pin_x; root.wire_start_y = sample_node.out_pin_y;
+                root.wire_end_x = sample_node.out_pin_x; root.wire_end_y = sample_node.out_pin_y;
+            }
+        }
+    }
+    TouchArea {
+        x: imggen_node.node_x + 210px; y: imggen_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.imggen_to_generate = false;
+                root.wire_dragging = true; root.wire_source = 3;
+                root.wire_start_x = imggen_node.out_pin_x; root.wire_start_y = imggen_node.out_pin_y;
+                root.wire_end_x = imggen_node.out_pin_x; root.wire_end_y = imggen_node.out_pin_y;
+            }
+        }
+    }
+    BezierWire {
+        visible: root.wire_dragging;
+        start_x: root.wire_start_x;
+        start_y: root.wire_start_y;
+        end_x: root.wire_end_x;
+        end_y: root.wire_end_y;
+        wire_color: #f5f7fa;
+    }
+    Rectangle {
+        visible: root.wire_menu_visible;
+        x: root.wire_menu_x; y: root.wire_menu_y;
+        width: 150px; height: 42px;
+        background: #252a34; border-width: 1px; border-color: #667085; border-radius: 5px;
+        Text { x: 12px; y: 12px; text: "Disconnect wire"; color: #f5f7fa; font-size: 13px; }
+        TouchArea {
+            clicked => {
+                if root.wire_menu_wire == 0 { root.ctx_to_generate = false; }
+                if root.wire_menu_wire == 1 { root.generate_to_save = false; }
+                if root.wire_menu_wire == 2 { root.sample_to_imggen = false; }
+                if root.wire_menu_wire == 3 { root.imggen_to_generate = false; }
+                root.wire_menu_visible = false;
+                root.wire_menu_wire = -1;
+            }
+        }
+    }
+    Button {
+        x: parent.width - self.width - 24px;
+        y: 18px;
+        text: "Back to Home";
+        clicked => { AppRouter.navigate("Home"); }
+    }
+    Button {
+        x: parent.width - self.width - 150px;
+        y: 18px;
+        text: "Save Workflow";
+        clicked => { AppRouter.save_workflow(); }
+    }
+}
+
+// --- ui/views/node_pages.slint ---
+component NodePage inherits Rectangle {
+    in property <string> node_title;
+    in property <string> node_kind;
+    in property <string> node_description;
+    background: #20242c;
+    Rectangle {
+        x: 0px; y: 0px; width: 100%; height: 64px; background: #2a303b;
+        Text { x: 24px; y: 18px; text: root.node_title; color: #f5f7fa; font-size: 22px; }
+        Text { x: 24px; y: 43px; text: root.node_kind; color: #aeb7c6; font-size: 11px; }
+    }
+    Rectangle {
+        x: 672px; y: 14px; width: 34px; height: 34px;
+        border-radius: 17px; background: #454d5b;
+        Text { text: "×"; color: #ffffff; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; }
+        TouchArea { clicked => { AppRouter.navigate("Workflow"); } }
+    }
+    Button {
+        x: 540px; y: 14px; width: 118px; height: 34px;
+        text: "Cancel";
+        clicked => { WorkflowNodes.cancel_edit(); }
+    }
+    Text { x: 28px; y: 104px; text: root.node_description; color: #d7dce5; font-size: 15px; }
+    Rectangle { x: 28px; y: 142px; width: 664px; height: 1px; background: #414957; }
+    Text { x: 28px; y: 166px; text: "Node parameters"; color: #f5f7fa; font-size: 16px; }
+    Text { x: 28px; y: 198px; text: "This editor will be extended with node-specific controls."; color: #9aa5b5; font-size: 13px; }
+}
+
+export component PromptNodePage inherits NodePage {
+    node_title: "Prompt Node"; node_kind: "Text input node";
+    node_description: "Create and refine the text prompt for the next node.";
+}
+
+export component DiffusionNodePage inherits NodePage {
+    node_title: "Stable Diffusion Node"; node_kind: "Image generation node";
+    node_description: "Configure the image generation model and sampling options.";
+}
+
+export component PreviewNodePage inherits NodePage {
+    node_title: "Image Preview Node"; node_kind: "Output node";
+    node_description: "Inspect the generated image and pass it to another node.";
+}
+
+component ParameterRow inherits Rectangle {
+    in property <string> parameter_name;
+    in property <string> parameter_value;
+    width: 320px;
+    height: 28px;
+    Text { x: 0px; y: 6px; text: root.parameter_name; color: #cbd3df; font-size: 13px; }
+    Rectangle { x: 170px; y: 0px; width: 150px; height: 28px; background: #303744; border-radius: 4px;
+        Text { x: 8px; y: 6px; text: root.parameter_value; color: #f5f7fa; font-size: 12px; }
+    }
+}
+
+component EditorField inherits Rectangle {
+    in-out property <string> value;
+    in property <string> placeholder: "";
+    in property <length> field_width: 300px;
+    in property <color> field_background: #303744;
+    width: root.field_width;
+    height: 32px;
+    background: root.field_background;
+    border-width: 1px;
+    border-color: #465264;
+    border-radius: 4px;
+    TextInput {
+        x: 10px;
+        y: 4px;
+        width: parent.width - 20px;
+        height: parent.height - 8px;
+        text <=> root.value;
+        color: #f5f7fa;
+        font-size: 13px;
+    }
+}
+
+component MultilineEditor inherits Rectangle {
+    in-out property <string> value;
+    in property <length> field_width: 470px;
+    in property <length> field_height: 92px;
+    width: root.field_width;
+    height: root.field_height;
+    background: #303744;
+    border-width: 1px;
+    border-color: #465264;
+    border-radius: 4px;
+    TextEdit {
+        x: 8px;
+        y: 6px;
+        width: parent.width - 16px;
+        height: parent.height - 12px;
+        text <=> root.value;
+        wrap: word-wrap;
+        font-size: 13px;
+        placeholder-text: "Enter prompt...";
+    }
+}
+
+component EditorLabel inherits Rectangle {
+    in property <string> label;
+    width: 150px;
+    height: 32px;
+    Text { x: 0px; y: 8px; text: root.label; color: #cbd3df; font-size: 13px; }
+}
+
+component FilePickerField inherits Rectangle {
+    in-out property <string> value;
+    in property <string> field_key;
+    in property <color> field_background: #263c3c;
+    width: 580px;
+    height: 32px;
+    EditorField {
+        x: 0px;
+        y: 0px;
+        value <=> root.value;
+        field_width: 460px;
+        field_background: root.field_background;
+    }
+    Button {
+        x: 470px;
+        y: 0px;
+        width: 110px;
+        height: 32px;
+        text: "Browse...";
+        clicked => { AppRouter.open_file(root.field_key); }
+    }
+}
+
+component ModelSourceMode inherits Rectangle {
+    in property <string> mode_title;
+    in property <string> mode_description;
+    in property <bool> selected: false;
+    callback choose;
+    width: 300px;
+    height: 68px;
+    background: root.selected ? #3d618b : #29313d;
+    border-width: 1px;
+    border-color: root.selected ? #9acbff : #465264;
+    border-radius: 6px;
+    Text { x: 12px; y: 10px; text: root.mode_title; color: #f5f7fa; font-size: 13px; font-weight: 700; }
+    Text { x: 12px; y: 34px; text: root.mode_description; color: #aeb7c6; font-size: 11px; }
+    TouchArea { clicked => { root.choose(); } }
+}
+
+component ParameterNodePage inherits NodePage {
+    in-out property <bool> show_advanced: false;
+    in property <string> section_title: "Standard parameters";
+    Text { x: 28px; y: 232px; text: root.section_title; color: #f5f7fa; font-size: 15px; }
+    Button { x: 540px; y: 228px; text: "Show Advanced"; visible: !root.show_advanced; clicked => { root.show_advanced = true; } }
+    Button { x: 540px; y: 228px; text: "Hide Advanced"; visible: root.show_advanced; clicked => { root.show_advanced = false; } }
+}
+
+export component ContextParamsNodePage inherits ParameterNodePage {
+    in-out property <bool> separated_models: false;
+    callback browse_file(string);
+    node_title: "sd_ctx_params"; node_kind: "Model context parameters";
+    node_description: "Choose whether the renderer uses a bundled checkpoint or separate model components.";
+    section_title: "Model source";
+    ModelSourceMode {
+        x: 28px; y: 260px;
+        mode_title: "Checkpoint (bundled)";
+        mode_description: "SDXL / Illustrious style checkpoint";
+        selected: AppRouter.separated_models == "false";
+        choose => { AppRouter.separated_models = "false"; }
+    }
+    ModelSourceMode {
+        x: 346px; y: 260px;
+        mode_title: "Separated components";
+        mode_description: "Diffusion model + VAE + text encoders";
+        selected: AppRouter.separated_models == "true";
+        choose => { AppRouter.separated_models = "true"; }
+    }
+    if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 350px; label: "checkpoint_path"; }
+    if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 350px; field_key: "checkpoint_path"; value <=> AppRouter.checkpoint_path; }
+    if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 390px; label: "external_vae"; }
+    if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 390px; field_key: "external_vae_path"; value <=> AppRouter.external_vae_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 350px; label: "diffusion_model"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 350px; field_key: "diffusion_model_path"; value <=> AppRouter.diffusion_model_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 390px; label: "vae_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 390px; field_key: "vae_path"; value <=> AppRouter.vae_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "clip_l_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "clip_l_path"; value <=> AppRouter.clip_l_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 470px; label: "t5xxl_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 470px; field_key: "t5xxl_path"; value <=> AppRouter.t5xxl_path; }
+    EditorLabel { x: 28px; y: 510px; label: "backend"; }
+    EditorField { x: 190px; y: 510px; value <=> AppRouter.backend; field_width: 470px; }
+    EditorLabel { x: 28px; y: 550px; label: "threads"; }
+    EditorField { x: 190px; y: 550px; value <=> AppRouter.threads; field_width: 180px; }
+    EditorLabel { x: 390px; y: 550px; label: "type"; }
+    EditorField { x: 500px; y: 550px; value <=> AppRouter.wtype; field_width: 160px; }
+    EditorLabel { x: 28px; y: 590px; label: "flash_attn"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 590px; value <=> AppRouter.flash_attn; field_width: 180px; visible: root.show_advanced; }
+    EditorLabel { x: 390px; y: 590px; label: "max_vram"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 590px; value <=> AppRouter.max_vram; field_width: 160px; visible: root.show_advanced; }
+}
+
+export component SampleParamsNodePage inherits ParameterNodePage {
+    node_title: "Sampler & Scheduler"; node_kind: "Sampler parameters";
+    node_description: "Choose the sampler and guidance values for generation.";
+    EditorLabel { x: 28px; y: 260px; label: "sample_method"; }
+    EditorField { x: 190px; y: 260px; value <=> AppRouter.sample_method; field_width: 180px; }
+    EditorLabel { x: 28px; y: 300px; label: "scheduler"; }
+    EditorField { x: 190px; y: 300px; value <=> AppRouter.scheduler; field_width: 180px; }
+    EditorLabel { x: 28px; y: 340px; label: "sample_steps"; }
+    EditorField { x: 190px; y: 340px; value <=> AppRouter.sample_steps; field_width: 180px; }
+    EditorLabel { x: 350px; y: 260px; label: "eta"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 260px; value <=> AppRouter.eta; field_width: 160px; visible: root.show_advanced; }
+    EditorLabel { x: 350px; y: 300px; label: "flow_shift"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 300px; value <=> AppRouter.flow_shift; field_width: 160px; visible: root.show_advanced; }
+    EditorLabel { x: 350px; y: 340px; label: "custom_sigmas"; visible: root.show_advanced; }
+    EditorField { x: 500px; y: 340px; value <=> AppRouter.custom_sigmas; field_width: 160px; visible: root.show_advanced; }
+}
+
+export component ImageGenParamsNodePage inherits ParameterNodePage {
+    node_title: "Prompt & Image Parameters"; node_kind: "Image generation parameters";
+    node_description: "Set the SDXL prompt, negative prompt, resolution, and sampling request.";
+    section_title: "Generation request";
+    EditorLabel { x: 28px; y: 260px; label: "Positive Prompt"; height: 92px; }
+    MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt; }
+    EditorLabel { x: 28px; y: 366px; label: "Negative Prompt"; height: 92px; }
+    MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt; }
+    EditorLabel { x: 28px; y: 472px; label: "width"; }
+    EditorField { x: 190px; y: 472px; value <=> AppRouter.width; field_width: 180px; }
+    EditorLabel { x: 390px; y: 472px; label: "height"; }
+    EditorField { x: 500px; y: 472px; value <=> AppRouter.height; field_width: 160px; }
+    EditorLabel { x: 28px; y: 512px; label: "batch_count"; }
+    EditorField { x: 190px; y: 512px; value <=> AppRouter.batch_count; field_width: 180px; }
+    EditorLabel { x: 390px; y: 512px; label: "seed"; }
+    EditorField { x: 500px; y: 512px; value <=> AppRouter.seed; field_width: 160px; }
+    EditorLabel { x: 28px; y: 552px; label: "loras"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 552px; value <=> AppRouter.loras; field_width: 470px; visible: root.show_advanced; }
+    EditorLabel { x: 28px; y: 592px; label: "hires / cache"; visible: root.show_advanced; }
+    EditorField { x: 190px; y: 592px; value <=> AppRouter.hires_cache; field_width: 470px; visible: root.show_advanced; }
+}
+
+component ProcessNodePage inherits NodePage {
+    in property <string> api_signature;
+    Text { x: 28px; y: 232px; text: "Stable Diffusion API"; color: #f5f7fa; font-size: 15px; }
+    Rectangle { x: 28px; y: 262px; width: 664px; height: 34px; background: #303744; border-radius: 4px;
+        Text { x: 12px; y: 8px; text: root.api_signature; color: #cbd3df; font-size: 12px; }
+    }
+    Text { x: 28px; y: 320px; text: "Pins accept and produce typed workflow values."; color: #9aa5b5; font-size: 13px; }
+}
+
+export component GenerateImageNodePage inherits ProcessNodePage {
+    node_title: "generate_image"; node_kind: "Image generation";
+    node_description: "Generate an SD image from SDCTX and image generation parameters.";
+    api_signature: "SD_API bool generate_image(sd_ctx_t*, sd_img_gen_params_t*, sd_image_t**, int*)";
+}
+
+export component SaveWebPNodePage inherits ProcessNodePage {
+    node_title: "SaveWebP"; node_kind: "Image output";
+    node_description: "Encode generated image data as a WebP file.";
+    api_signature: "sd.SaveWebP(*Image, path, quality) -> bool";
+}
+
+// --- ui/views/models_page.slint ---
+component ModelsPage inherits VerticalBox {
+    in-out property <[string]> models: [];
+    alignment: center;
+    spacing: 12px;
+    Text {
+        text: "Model Library";
+        font-size: 24px;
+        horizontal-alignment: center;
+    }
+    ListView {
+        for model_name in root.models: Text {
+            text: model_name;
+            horizontal-alignment: center;
+        }
+    }
+    Button {
+        text: "Back to Home";
+        clicked => { AppRouter.navigate("Home"); }
+    }
+}
+
+// --- ui/views/settings_page.slint ---
+component SettingsPage inherits VerticalBox {
+    alignment: center;
+    spacing: 12px;
+    Text {
+        text: "Settings";
+        font-size: 24px;
+        horizontal-alignment: center;
+    }
+    Text {
+        text: "Runtime and plugin settings will be configured here.";
+        horizontal-alignment: center;
+    }
+    Button {
+        text: "Back to Home";
+        clicked => { AppRouter.navigate("Home"); }
+    }
+}
+
+// --- ui/router_view.slint ---
+component RouterView inherits Rectangle {
+    in-out property <string> current_page <=> AppRouter.current_page;
+    in-out property <[string]> models <=> models_page.models;
+    
+    if root.current_page == "Home": HomePage { width: 100%; height: 100%; }
+    if root.current_page == "Workflow": WorkflowPage { width: 100%; height: 100%; }
+    models_page := ModelsPage { visible: root.current_page == "Models"; width: 100%; height: 100%; }
+    if root.current_page == "Settings": SettingsPage { width: 100%; height: 100%; }
+    if root.current_page == "NodePrompt": PromptNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeDiffusion": DiffusionNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodePreview": PreviewNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeContextParams": ContextParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeSampleParams": SampleParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeImageGenParams": ImageGenParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeGenerateImage": GenerateImageNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeSaveWebP": SaveWebPNodePage { width: 100%; height: 100%; }
+}
+
+// --- ui/app_window.slint ---
+export component AppWindow inherits Window {
+    preferred-width: 1440px;
+    preferred-height: 880px;
+    min-width: 720px;
+    min-height: 440px;
+    title: "Renga AI";
+    
+    in-out property <string> current_page <=> AppRouter.current_page;
+    in-out property <[string]> models <=> router.models;
+    router := RouterView { width: 100%; height: 100%; }
+}

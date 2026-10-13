@@ -1,0 +1,14 @@
+import { RouterView } from "router_view.slint";
+import { AppRouter } from "renga/router.slint";
+
+export component AppWindow inherits Window {
+    preferred-width: 1440px;
+    preferred-height: 880px;
+    min-width: 720px;
+    min-height: 440px;
+    title: "Renga AI";
+    
+    in-out property <string> current_page <=> AppRouter.current_page;
+    in-out property <[string]> models <=> router.models;
+    router := RouterView { width: 100%; height: 100%; }
+}

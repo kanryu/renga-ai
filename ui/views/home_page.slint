@@ -1,0 +1,15 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+import { AppRouter } from "../renga/router.slint";
+
+component HomePage inherits Rectangle {
+    
+    VerticalBox {
+        alignment: center;
+        spacing: 12px;
+        Text { text: "Renga AI"; font-size: 28px; horizontal-alignment: center; }
+        Text { text: "Multimodal AI Workflow Studio"; horizontal-alignment: center; }
+        Button { text: "Open Workflow"; clicked => { AppRouter.navigate("Workflow"); } }
+        Button { text: "Model Library"; clicked => { AppRouter.navigate("Models"); } }
+        Button { text: "Settings"; clicked => { AppRouter.navigate("Settings"); } }
+    }
+}

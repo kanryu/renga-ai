@@ -1,0 +1,544 @@
+package controller
+
+import "github.com/kanryu/hike-gui-slint/slint"
+import "std/encoding/json"
+
+extern func puts(text cstring) int
+
+const workflowStatePath string = "renga-workflow.json"
+
+// Router owns one controller for every page and applies the same lifecycle
+// transition that the Knuckle example performs in its JavaScript router.
+type Router struct {
+    Home *HomeController
+    Workflow *WorkflowController
+    Models *ModelsController
+    Settings *SettingsController
+    PromptNode *NodeController
+    DiffusionNode *NodeController
+    PreviewNode *NodeController
+    NodeContextParams *NodeController
+    NodeSampleParams *NodeController
+    NodeImageGenParams *NodeController
+    NodeGenerateImage *NodeController
+    NodeSaveWebP *NodeController
+    Current string
+    UI *slint.Context
+    WorkflowInitialized bool
+    WorkflowStateJSON string
+}
+
+func NewRouter() *Router {
+    router := &Router{
+        Home: NewHomeController(),
+        Workflow: NewWorkflowController(),
+        Models: NewModelsController(),
+        Settings: NewSettingsController(),
+        PromptNode: NewNodeController("NodePrompt"),
+        DiffusionNode: NewNodeController("NodeDiffusion"),
+        PreviewNode: NewNodeController("NodePreview"),
+        NodeContextParams: NewNodeController("NodeContextParams"),
+        NodeSampleParams: NewNodeController("NodeSampleParams"),
+        NodeImageGenParams: NewNodeController("NodeImageGenParams"),
+        NodeGenerateImage: NewNodeController("NodeGenerateImage"),
+        NodeSaveWebP: NewNodeController("NodeSaveWebP"),
+        Current: "",
+        UI: nil,
+        WorkflowInitialized: false,
+        WorkflowStateJSON: "",
+    }
+    return router
+}
+
+// Attach connects the router to the Slint context and performs the initial
+// route setup. The application entry point only needs to call this method.
+func (router *Router) Attach(ui *slint.Context) bool {
+    if router == nil || ui == nil {
+        return false
+    }
+    router.UI = ui
+    if !router.Navigate(router.InitialRoute()) {
+        return false
+    }
+    globalUpdated := ui.SetGlobalProperty("AppRouter", "current_page", router.Current)
+    if globalUpdated { puts(cstring("[Renga] attach: AppRouter.current_page updated")) }
+    if !globalUpdated { puts(cstring("[Renga] attach: AppRouter.current_page update failed")) }
+    rootUpdated := ui.SetProperty("current_page", router.Current)
+    if rootUpdated { puts(cstring("[Renga] attach: root current_page updated")) }
+    if !rootUpdated { puts(cstring("[Renga] attach: root current_page update skipped/failed")) }
+    if !globalUpdated && !rootUpdated {
+        puts(cstring("[Renga] attach: no current_page property could be updated"))
+        return false
+    }
+    modelsUpdated := ui.SetStringArrayProperty("models", router.Models.ModelNames())
+    if modelsUpdated { puts(cstring("[Renga] attach: models updated")) }
+    if !modelsUpdated { puts(cstring("[Renga] attach: models update failed")) }
+    nodeIDs := []string{"ctx-1", "sample-1", "image-gen-1", "generate-1", "save-webp-1"}
+    nodeTypes := []string{"sd_ctx_params", "sd_sample_params", "sd_img_gen_params", "generate_image", "save_webp"}
+    ui.SetGlobalStringArrayProperty("WorkflowNodes", "node_ids", nodeIDs)
+    ui.SetGlobalStringArrayProperty("WorkflowNodes", "node_types", nodeTypes)
+    return true
+}
+
+func (router *Router) ApplyDefaultWorkflow() {
+    ui := router.UI
+    ui.SetGlobalNumberProperty("AppRouter", "ctx_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "ctx_node_y", 120.0)
+    ui.SetGlobalNumberProperty("AppRouter", "sample_node_x", 50.0); ui.SetGlobalNumberProperty("AppRouter", "sample_node_y", 480.0)
+    ui.SetGlobalNumberProperty("AppRouter", "imggen_node_x", 320.0); ui.SetGlobalNumberProperty("AppRouter", "imggen_node_y", 390.0)
+    ui.SetGlobalNumberProperty("AppRouter", "generate_node_x", 500.0); ui.SetGlobalNumberProperty("AppRouter", "generate_node_y", 120.0)
+    ui.SetGlobalNumberProperty("AppRouter", "save_node_x", 920.0); ui.SetGlobalNumberProperty("AppRouter", "save_node_y", 125.0)
+    ui.SetGlobalNumberProperty("AppRouter", "ctx_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "ctx_node_height", 154.0)
+    ui.SetGlobalNumberProperty("AppRouter", "sample_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "sample_node_height", 154.0)
+    ui.SetGlobalNumberProperty("AppRouter", "imggen_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "imggen_node_height", 154.0)
+    ui.SetGlobalNumberProperty("AppRouter", "generate_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "generate_node_height", 154.0)
+    ui.SetGlobalNumberProperty("AppRouter", "save_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "save_node_height", 154.0)
+    ui.SetGlobalProperty("AppRouter", "checkpoint_path", "Illustrious-XL-v2.0.safetensors"); ui.SetGlobalProperty("AppRouter", "diffusion_model_path", "sdxl-unet.safetensors"); ui.SetGlobalProperty("AppRouter", "external_vae_path", "Optional / embedded"); ui.SetGlobalProperty("AppRouter", "vae_path", "sdxl-vae.safetensors"); ui.SetGlobalProperty("AppRouter", "clip_l_path", "clip_l.safetensors"); ui.SetGlobalProperty("AppRouter", "t5xxl_path", "t5xxl_fp16.safetensors")
+    ui.SetGlobalProperty("AppRouter", "separated_models", "false"); ui.SetGlobalProperty("AppRouter", "backend", "diffusion=cuda0,detector=cuda0")
+    ui.SetGlobalProperty("AppRouter", "threads", "Auto"); ui.SetGlobalProperty("AppRouter", "wtype", "FP16"); ui.SetGlobalProperty("AppRouter", "flash_attn", "false"); ui.SetGlobalProperty("AppRouter", "max_vram", "Automatic")
+    ui.SetGlobalProperty("AppRouter", "sample_method", "Euler"); ui.SetGlobalProperty("AppRouter", "scheduler", "Karras"); ui.SetGlobalProperty("AppRouter", "sample_steps", "20"); ui.SetGlobalProperty("AppRouter", "eta", "0.0"); ui.SetGlobalProperty("AppRouter", "flow_shift", "1.0"); ui.SetGlobalProperty("AppRouter", "custom_sigmas", "Default")
+    ui.SetGlobalProperty("AppRouter", "prompt", "masterpiece, best quality, highres, detailed background"); ui.SetGlobalProperty("AppRouter", "negative_prompt", "blurry, low quality"); ui.SetGlobalProperty("AppRouter", "width", "1024"); ui.SetGlobalProperty("AppRouter", "height", "1344"); ui.SetGlobalProperty("AppRouter", "batch_count", "1"); ui.SetGlobalProperty("AppRouter", "seed", "Random"); ui.SetGlobalProperty("AppRouter", "loras", "None"); ui.SetGlobalProperty("AppRouter", "hires_cache", "Default")
+    ui.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", true); ui.SetGlobalBoolProperty("WorkflowNodes", "sample_to_imggen", true); ui.SetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate", true); ui.SetGlobalBoolProperty("WorkflowNodes", "generate_to_save", true)
+}
+
+func (router *Router) InitializeWorkflow() {
+    if router.WorkflowInitialized { return }
+    if !router.LoadWorkflow() {
+        puts(cstring("[Renga] workflow JSON not found; injecting defaults"))
+        router.ApplyDefaultWorkflow()
+    } else {
+        puts(cstring("[Renga] workflow JSON loaded; injecting saved node state"))
+    }
+    router.WorkflowInitialized = true
+    router.CaptureWorkflowState()
+}
+
+func (router *Router) CaptureWorkflowState() {
+    if router == nil || router.UI == nil { return }
+    snapshot := router.SerializeWorkflow()
+    if snapshot != "" {
+        router.WorkflowStateJSON = snapshot
+        puts(cstring("[Renga] workflow state captured from Slint globals"))
+    }
+}
+
+func (router *Router) HandleNodeCallback(callback *slint.CallbackEvent) bool {
+    if router == nil || callback == nil || router.UI == nil { return false }
+    nodeID := string(callback.StringArg)
+    route := ""
+    if nodeID == "ctx-1" { route = "NodeContextParams" }
+    if nodeID == "sample-1" { route = "NodeSampleParams" }
+    if nodeID == "image-gen-1" { route = "NodeImageGenParams" }
+    if nodeID == "generate-1" { route = "NodeGenerateImage" }
+    if nodeID == "save-webp-1" { route = "NodeSaveWebP" }
+    if route == "" { return false }
+    if router.Current == "Workflow" {
+        router.CaptureWorkflowState()
+    }
+    if !router.Navigate(route) { return false }
+    router.UI.SetGlobalProperty("AppRouter", "current_page", router.Current)
+    router.UI.SetProperty("current_page", router.Current)
+    router.UI.SetGlobalProperty("WorkflowNodes", "selected_id", nodeID)
+    puts(cstring("[Renga] node opened by id: " + nodeID))
+    return true
+}
+
+// SaveWorkflow serializes the complete editable workflow state owned by the
+// AppRouter global. Slint remains a view/editor; Hike owns the persisted data.
+func (router *Router) SerializeWorkflow() string {
+    if router == nil || router.UI == nil {
+        return ""
+    }
+
+    puts(cstring("[Renga] workflow save: collecting node array"))
+    doc := json.NewArray()
+
+    ctx := json.NewObject(); json.SetValue(ctx, "id", json.NewString("ctx-1")); json.SetValue(ctx, "type", json.NewString("sd_ctx_params"))
+    value, ok := router.UI.GetGlobalNumberProperty("AppRouter", "ctx_node_x"); if ok { json.SetValue(ctx, "x", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "ctx_node_y"); if ok { json.SetValue(ctx, "y", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "ctx_node_width"); if ok { json.SetValue(ctx, "width", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "ctx_node_height"); if ok { json.SetValue(ctx, "height", json.NewNumber(value)) }
+    ctxParams := json.NewObject()
+    valueString, stringOK := router.UI.GetGlobalStringProperty("AppRouter", "checkpoint_path"); if stringOK { json.SetValue(ctxParams, "checkpoint_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "diffusion_model_path"); if stringOK { json.SetValue(ctxParams, "diffusion_model_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "external_vae_path"); if stringOK { json.SetValue(ctxParams, "external_vae_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "vae_path"); if stringOK { json.SetValue(ctxParams, "vae_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "clip_l_path"); if stringOK { json.SetValue(ctxParams, "clip_l_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "t5xxl_path"); if stringOK { json.SetValue(ctxParams, "t5xxl_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "separated_models"); if stringOK { json.SetValue(ctxParams, "separated_models", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "backend"); if stringOK { json.SetValue(ctxParams, "backend", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "threads"); if stringOK { json.SetValue(ctxParams, "threads", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "wtype"); if stringOK { json.SetValue(ctxParams, "wtype", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "flash_attn"); if stringOK { json.SetValue(ctxParams, "flash_attn", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "max_vram"); if stringOK { json.SetValue(ctxParams, "max_vram", json.NewString(valueString)) }
+    ctxWire, ctxWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate"); if ctxWireOK && ctxWire { json.SetValue(ctx, "connection_to", json.NewString("generate-1:input-1")) } else { json.SetValue(ctx, "connection_to", json.NewString("")) }
+    json.SetValue(ctx, "parameters", ctxParams); json.AppendValue(doc, ctx)
+
+    sample := json.NewObject(); json.SetValue(sample, "id", json.NewString("sample-1")); json.SetValue(sample, "type", json.NewString("sd_sample_params"))
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "sample_node_x"); if ok { json.SetValue(sample, "x", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "sample_node_y"); if ok { json.SetValue(sample, "y", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "sample_node_width"); if ok { json.SetValue(sample, "width", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "sample_node_height"); if ok { json.SetValue(sample, "height", json.NewNumber(value)) }
+    sampleParams := json.NewObject()
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "sample_method"); if stringOK { json.SetValue(sampleParams, "sample_method", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "scheduler"); if stringOK { json.SetValue(sampleParams, "scheduler", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "sample_steps"); if stringOK { json.SetValue(sampleParams, "sample_steps", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "eta"); if stringOK { json.SetValue(sampleParams, "eta", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "flow_shift"); if stringOK { json.SetValue(sampleParams, "flow_shift", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "custom_sigmas"); if stringOK { json.SetValue(sampleParams, "custom_sigmas", json.NewString(valueString)) }
+    sampleWire, sampleWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "sample_to_imggen"); if sampleWireOK && sampleWire { json.SetValue(sample, "connection_to", json.NewString("image-gen-1:input-1")) } else { json.SetValue(sample, "connection_to", json.NewString("")) }
+    json.SetValue(sample, "parameters", sampleParams); json.AppendValue(doc, sample)
+
+    image := json.NewObject(); json.SetValue(image, "id", json.NewString("image-gen-1")); json.SetValue(image, "type", json.NewString("sd_img_gen_params"))
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "imggen_node_x"); if ok { json.SetValue(image, "x", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "imggen_node_y"); if ok { json.SetValue(image, "y", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "imggen_node_width"); if ok { json.SetValue(image, "width", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "imggen_node_height"); if ok { json.SetValue(image, "height", json.NewNumber(value)) }
+    imageParams := json.NewObject()
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "prompt"); if stringOK { json.SetValue(imageParams, "prompt", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "negative_prompt"); if stringOK { json.SetValue(imageParams, "negative_prompt", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "width"); if stringOK { json.SetValue(imageParams, "width", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "height"); if stringOK { json.SetValue(imageParams, "height", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "batch_count"); if stringOK { json.SetValue(imageParams, "batch_count", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "seed"); if stringOK { json.SetValue(imageParams, "seed", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "loras"); if stringOK { json.SetValue(imageParams, "loras", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "hires_cache"); if stringOK { json.SetValue(imageParams, "hires_cache", json.NewString(valueString)) }
+    imageWire, imageWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate"); if imageWireOK && imageWire { json.SetValue(image, "connection_to", json.NewString("generate-1:input-2")) } else { json.SetValue(image, "connection_to", json.NewString("")) }
+    json.SetValue(image, "parameters", imageParams); json.AppendValue(doc, image)
+
+    generate := json.NewObject(); json.SetValue(generate, "id", json.NewString("generate-1")); json.SetValue(generate, "type", json.NewString("generate_image"))
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "generate_node_x"); if ok { json.SetValue(generate, "x", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "generate_node_y"); if ok { json.SetValue(generate, "y", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "generate_node_width"); if ok { json.SetValue(generate, "width", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "generate_node_height"); if ok { json.SetValue(generate, "height", json.NewNumber(value)) }
+    generateWire, generateWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "generate_to_save"); if generateWireOK && generateWire { json.SetValue(generate, "connection_to", json.NewString("save-webp-1:input-1")) } else { json.SetValue(generate, "connection_to", json.NewString("")) }
+    json.SetValue(generate, "parameters", json.NewObject()); json.AppendValue(doc, generate)
+
+    save := json.NewObject(); json.SetValue(save, "id", json.NewString("save-webp-1")); json.SetValue(save, "type", json.NewString("save_webp"))
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "save_node_x"); if ok { json.SetValue(save, "x", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "save_node_y"); if ok { json.SetValue(save, "y", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "save_node_width"); if ok { json.SetValue(save, "width", json.NewNumber(value)) }
+    value, ok = router.UI.GetGlobalNumberProperty("AppRouter", "save_node_height"); if ok { json.SetValue(save, "height", json.NewNumber(value)) }
+    json.SetValue(save, "connection_to", json.NewString("")); json.SetValue(save, "parameters", json.NewObject()); json.AppendValue(doc, save)
+    puts(cstring("[Renga] workflow save: serializing JSON"))
+    content := json.Stringify(doc)
+    return content
+}
+
+func (router *Router) SaveWorkflow() bool {
+    router.CaptureWorkflowState()
+    if router.WorkflowStateJSON == "" { return false }
+    puts(cstring("[Renga] workflow save: writing file"))
+    if !json.WriteFile(workflowStatePath, router.WorkflowStateJSON) {
+        puts(cstring("[Renga] workflow save failed: " + workflowStatePath))
+        return false
+    }
+    puts(cstring("[Renga] workflow saved: " + workflowStatePath))
+    return true
+}
+
+// LoadWorkflow restores the node array saved by the application.
+func (router *Router) LoadWorkflow() bool {
+    if router == nil || router.UI == nil { return false }
+    content := json.ReadFile(workflowStatePath)
+    if content == "" { return false }
+    return router.LoadWorkflowContent(content)
+}
+
+func (router *Router) LoadWorkflowContent(content string) bool {
+    if router == nil || router.UI == nil { return false }
+    if content == "" { return false }
+    doc := json.Parse(content)
+    if doc == nil || doc.Type != json.TypeArray {
+        puts(cstring("[Renga] workflow restore failed: expected node array"))
+        return false
+    }
+    router.UI.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", false)
+    router.UI.SetGlobalBoolProperty("WorkflowNodes", "sample_to_imggen", false)
+    router.UI.SetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate", false)
+    router.UI.SetGlobalBoolProperty("WorkflowNodes", "generate_to_save", false)
+    for i := 0; i < len(doc.ArrVal); i = i + 1 {
+        node := json.ArrayValue(doc, i)
+        if node == nil { continue }
+        id := node.Get("id")
+        if id == nil { continue }
+        nodeID := id.AsString()
+        connection := node.Get("connection_to")
+        if connection != nil {
+            target := connection.AsString()
+            if nodeID == "ctx-1" && target == "generate-1:input-1" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", true) }
+            if nodeID == "sample-1" && target == "image-gen-1:input-1" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "sample_to_imggen", true) }
+            if nodeID == "image-gen-1" && target == "generate-1:input-2" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate", true) }
+            if nodeID == "generate-1" && target == "save-webp-1:input-1" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "generate_to_save", true) }
+        }
+        x := node.Get("x"); y := node.Get("y")
+        width := node.Get("width"); height := node.Get("height")
+        if nodeID == "ctx-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_height", height.AsFloat()) } }
+        if nodeID == "sample-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_height", height.AsFloat()) } }
+        if nodeID == "image-gen-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_height", height.AsFloat()) } }
+        if nodeID == "generate-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_height", height.AsFloat()) } }
+        if nodeID == "save-webp-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_height", height.AsFloat()) } }
+
+        params := node.Get("parameters")
+        if params == nil { continue }
+        if nodeID == "ctx-1" {
+            value := params.Get("checkpoint_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "checkpoint_path", value.AsString()) }
+            value = params.Get("diffusion_model_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "diffusion_model_path", value.AsString()) }
+            value = params.Get("external_vae_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "external_vae_path", value.AsString()) }
+            value = params.Get("vae_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "vae_path", value.AsString()) }
+            value = params.Get("clip_l_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "clip_l_path", value.AsString()) }
+            value = params.Get("t5xxl_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "t5xxl_path", value.AsString()) }
+            value = params.Get("separated_models"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "separated_models", value.AsString()) }
+            value = params.Get("backend"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "backend", value.AsString()) }
+            value = params.Get("threads"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "threads", value.AsString()) }
+            value = params.Get("wtype"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "wtype", value.AsString()) }
+            value = params.Get("flash_attn"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flash_attn", value.AsString()) }
+            value = params.Get("max_vram"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "max_vram", value.AsString()) }
+        }
+        if nodeID == "sample-1" {
+            value := params.Get("sample_method"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "sample_method", value.AsString()) }
+            value = params.Get("scheduler"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "scheduler", value.AsString()) }
+            value = params.Get("sample_steps"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "sample_steps", value.AsString()) }
+            value = params.Get("eta"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "eta", value.AsString()) }
+            value = params.Get("flow_shift"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flow_shift", value.AsString()) }
+            value = params.Get("custom_sigmas"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "custom_sigmas", value.AsString()) }
+        }
+        if nodeID == "image-gen-1" {
+            value := params.Get("prompt"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "prompt", value.AsString()) }
+            value = params.Get("negative_prompt"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "negative_prompt", value.AsString()) }
+            value = params.Get("width"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "width", value.AsString()) }
+            value = params.Get("height"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "height", value.AsString()) }
+            value = params.Get("batch_count"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "batch_count", value.AsString()) }
+            value = params.Get("seed"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "seed", value.AsString()) }
+            value = params.Get("loras"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "loras", value.AsString()) }
+            value = params.Get("hires_cache"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "hires_cache", value.AsString()) }
+        }
+    }
+    puts(cstring("[Renga] workflow restored: node array"))
+    return true
+}
+
+func (router *Router) CancelWorkflowEdit() bool {
+    if router == nil || router.UI == nil || router.WorkflowStateJSON == "" { return false }
+    if !router.LoadWorkflowContent(router.WorkflowStateJSON) { return false }
+    if !router.Navigate("Workflow") { return false }
+    router.UI.SetGlobalProperty("AppRouter", "current_page", "Workflow")
+    router.UI.SetProperty("current_page", "Workflow")
+    router.UI.SetGlobalProperty("WorkflowNodes", "selected_id", "")
+    puts(cstring("[Renga] workflow edit cancelled"))
+    return true
+}
+
+// Legacy loader retained temporarily for compatibility with older source files.
+// Missing files are normal on the first launch and are intentionally quiet.
+func (router *Router) LoadLegacyWorkflow() bool {
+    if router == nil || router.UI == nil { return false }
+    content := json.ReadFile(workflowStatePath)
+    if content == "" { return false }
+    doc := json.Parse(content)
+    if doc == nil {
+        puts(cstring("[Renga] workflow restore failed: invalid JSON"))
+        return false
+    }
+    positions := doc.Get("positions")
+    params := doc.Get("parameters")
+
+    if positions != nil {
+        value := positions.Get("ctx_node_x")
+        if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_x", value.AsFloat()) }
+        value = positions.Get("ctx_node_y"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "ctx_node_y", value.AsFloat()) }
+        value = positions.Get("sample_node_x"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_x", value.AsFloat()) }
+        value = positions.Get("sample_node_y"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "sample_node_y", value.AsFloat()) }
+        value = positions.Get("imggen_node_x"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_x", value.AsFloat()) }
+        value = positions.Get("imggen_node_y"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "imggen_node_y", value.AsFloat()) }
+        value = positions.Get("generate_node_x"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_x", value.AsFloat()) }
+        value = positions.Get("generate_node_y"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_y", value.AsFloat()) }
+        value = positions.Get("save_node_x"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_x", value.AsFloat()) }
+        value = positions.Get("save_node_y"); if value != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_y", value.AsFloat()) }
+    }
+
+    if params != nil {
+        value := params.Get("checkpoint_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "checkpoint_path", value.AsString()) }
+        value = params.Get("diffusion_model_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "diffusion_model_path", value.AsString()) }
+        value = params.Get("external_vae_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "external_vae_path", value.AsString()) }
+        value = params.Get("vae_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "vae_path", value.AsString()) }
+        value = params.Get("clip_l_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "clip_l_path", value.AsString()) }
+        value = params.Get("t5xxl_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "t5xxl_path", value.AsString()) }
+        value = params.Get("separated_models"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "separated_models", value.AsString()) }
+        value = params.Get("backend"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "backend", value.AsString()) }
+        value = params.Get("threads"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "threads", value.AsString()) }
+        value = params.Get("wtype"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "wtype", value.AsString()) }
+        value = params.Get("flash_attn"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flash_attn", value.AsString()) }
+        value = params.Get("max_vram"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "max_vram", value.AsString()) }
+        value = params.Get("sample_method"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "sample_method", value.AsString()) }
+        value = params.Get("scheduler"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "scheduler", value.AsString()) }
+        value = params.Get("sample_steps"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "sample_steps", value.AsString()) }
+        value = params.Get("eta"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "eta", value.AsString()) }
+        value = params.Get("flow_shift"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flow_shift", value.AsString()) }
+        value = params.Get("custom_sigmas"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "custom_sigmas", value.AsString()) }
+        value = params.Get("prompt"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "prompt", value.AsString()) }
+        value = params.Get("negative_prompt"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "negative_prompt", value.AsString()) }
+        value = params.Get("width"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "width", value.AsString()) }
+        value = params.Get("height"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "height", value.AsString()) }
+        value = params.Get("batch_count"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "batch_count", value.AsString()) }
+        value = params.Get("seed"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "seed", value.AsString()) }
+        value = params.Get("loras"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "loras", value.AsString()) }
+        value = params.Get("hires_cache"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "hires_cache", value.AsString()) }
+    }
+
+    puts(cstring("[Renga] workflow restored: " + workflowStatePath))
+    return true
+}
+
+// HandleCallback consumes a callback emitted by AppRouter. Route selection,
+// controller lifecycle, and Slint property synchronization stay inside the
+// router just like KnuckleRouter.goTo().
+func (router *Router) HandleCallback(callback *slint.CallbackEvent) bool {
+    if router == nil || callback == nil {
+        return false
+    }
+    callbackName := string(callback.Name)
+    targetRoute := string(callback.StringArg)
+    puts(cstring("[Renga] callback name: " + callbackName))
+    puts(cstring("[Renga] callback route: " + targetRoute))
+    if callbackName != "navigate" && callbackName != "AppRouter.navigate" && targetRoute == "" {
+        return false
+    }
+
+    if targetRoute == "Home" { puts(cstring("[Renga] navigate -> Home")) }
+    if targetRoute == "Workflow" { puts(cstring("[Renga] navigate -> Workflow")) }
+    if targetRoute == "Models" { puts(cstring("[Renga] navigate -> Models")) }
+    if targetRoute == "Settings" { puts(cstring("[Renga] navigate -> Settings")) }
+
+    if targetRoute == "Workflow" && router.Current != "" && router.Current != "Workflow" {
+        router.CaptureWorkflowState()
+    }
+
+    if !router.Navigate(targetRoute) {
+        puts(cstring("[Renga] route rejected"))
+        return false
+    }
+    if router.UI == nil {
+        puts(cstring("[Renga] current_page update failed"))
+        return false
+    }
+    globalUpdated := router.UI.SetGlobalProperty("AppRouter", "current_page", router.Current)
+    rootUpdated := router.UI.SetProperty("current_page", router.Current)
+    if !globalUpdated && !rootUpdated {
+        puts(cstring("[Renga] current_page update failed"))
+        return false
+    }
+    puts(cstring("[Renga] current_page updated"))
+    return true
+}
+
+// HandleOpenFileCallback is the explicitly registered Hike-side handler for
+// AppRouter.open_file. The callback argument identifies which model-path
+// property receives the selected native file path.
+func (router *Router) HandleOpenFileCallback(callback *slint.CallbackEvent) bool {
+    if router == nil || callback == nil || router.UI == nil {
+        puts(cstring("[Renga] open_file callback rejected"))
+        return false
+    }
+    field := string(callback.StringArg)
+    propertyName := ""
+    if field == "checkpoint_path" { propertyName = "checkpoint_path" }
+    if field == "diffusion_model_path" { propertyName = "diffusion_model_path" }
+    if field == "external_vae_path" { propertyName = "external_vae_path" }
+    if field == "vae_path" { propertyName = "vae_path" }
+    if field == "clip_l_path" { propertyName = "clip_l_path" }
+    if field == "t5xxl_path" { propertyName = "t5xxl_path" }
+    if propertyName == "" {
+        puts(cstring("[Renga] open_file field rejected: " + field))
+        return false
+    }
+    puts(cstring("[Renga] open_file callback registered field: " + propertyName))
+    selected := router.UI.OpenFileDialog()
+    if selected == "" {
+        puts(cstring("[Renga] open file dialog cancelled or failed"))
+        puts(cstring("[Renga] dialog error code: " + string(slint.LastErrorCode())))
+        puts(cstring("[Renga] dialog error: " + slint.LastError()))
+        return true
+    }
+    if router.UI.SetGlobalProperty("AppRouter", propertyName, selected) {
+        puts(cstring("[Renga] open file path updated: " + propertyName))
+        return true
+    }
+    puts(cstring("[Renga] open file path update failed: " + propertyName))
+    return false
+}
+
+func (router *Router) Navigate(route string) bool {
+    if router.Current == route {
+        return true
+    }
+
+    router.unmountCurrent()
+
+    switch route {
+    case "Home":
+        router.Home.OnMount()
+    case "Workflow":
+        router.Workflow.OnMount()
+    case "Models":
+        router.Models.OnMount()
+    case "Settings":
+        router.Settings.OnMount()
+    case "NodePrompt":
+        router.PromptNode.OnMount()
+    case "NodeDiffusion":
+        router.DiffusionNode.OnMount()
+    case "NodePreview":
+        router.PreviewNode.OnMount()
+    case "NodeContextParams":
+        router.NodeContextParams.OnMount()
+    case "NodeSampleParams":
+        router.NodeSampleParams.OnMount()
+    case "NodeImageGenParams":
+        router.NodeImageGenParams.OnMount()
+    case "NodeGenerateImage":
+        router.NodeGenerateImage.OnMount()
+    case "NodeSaveWebP":
+        router.NodeSaveWebP.OnMount()
+    default:
+        return false
+    }
+
+    router.Current = route
+    if route == "Workflow" {
+        router.InitializeWorkflow()
+    }
+    return true
+}
+
+func (router *Router) unmountCurrent() {
+    switch router.Current {
+    case "Home":
+        router.Home.OnUnmount()
+    case "Workflow":
+        router.Workflow.OnUnmount()
+    case "Models":
+        router.Models.OnUnmount()
+    case "Settings":
+        router.Settings.OnUnmount()
+    case "NodePrompt":
+        router.PromptNode.OnUnmount()
+    case "NodeDiffusion":
+        router.DiffusionNode.OnUnmount()
+    case "NodePreview":
+        router.PreviewNode.OnUnmount()
+    case "NodeContextParams":
+        router.NodeContextParams.OnUnmount()
+    case "NodeSampleParams":
+        router.NodeSampleParams.OnUnmount()
+    case "NodeImageGenParams":
+        router.NodeImageGenParams.OnUnmount()
+    case "NodeGenerateImage":
+        router.NodeGenerateImage.OnUnmount()
+    case "NodeSaveWebP":
+        router.NodeSaveWebP.OnUnmount()
+    }
+}
+
+func (router *Router) InitialRoute() string {
+    return "Workflow"
+}

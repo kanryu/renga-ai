@@ -1,0 +1,13 @@
+package controller
+
+type ModelsController struct {
+    PageController
+}
+
+func NewModelsController() *ModelsController {
+    return &ModelsController{PageController: *NewPageController("Models")}
+}
+
+func (controller *ModelsController) ModelNames() []string {
+    return []string{"Stable Diffusion", "LLM", "ControlNet"}
+}

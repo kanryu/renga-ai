@@ -1,0 +1,24 @@
+import { AppRouter } from "renga/router.slint";
+import { HomePage } from "views/home_page.slint";
+import { WorkflowPage } from "views/workflow_page.slint";
+import { ModelsPage } from "views/models_page.slint";
+import { SettingsPage } from "views/settings_page.slint";
+import { PromptNodePage, DiffusionNodePage, PreviewNodePage, ContextParamsNodePage, SampleParamsNodePage, ImageGenParamsNodePage, GenerateImageNodePage, SaveWebPNodePage } from "views/node_pages.slint";
+
+component RouterView inherits Rectangle {
+    in-out property <string> current_page <=> AppRouter.current_page;
+    in-out property <[string]> models <=> models_page.models;
+    
+    if root.current_page == "Home": HomePage { width: 100%; height: 100%; }
+    if root.current_page == "Workflow": WorkflowPage { width: 100%; height: 100%; }
+    models_page := ModelsPage { visible: root.current_page == "Models"; width: 100%; height: 100%; }
+    if root.current_page == "Settings": SettingsPage { width: 100%; height: 100%; }
+    if root.current_page == "NodePrompt": PromptNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeDiffusion": DiffusionNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodePreview": PreviewNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeContextParams": ContextParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeSampleParams": SampleParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeImageGenParams": ImageGenParamsNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeGenerateImage": GenerateImageNodePage { width: 100%; height: 100%; }
+    if root.current_page == "NodeSaveWebP": SaveWebPNodePage { width: 100%; height: 100%; }
+}

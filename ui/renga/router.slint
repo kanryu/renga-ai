@@ -1,0 +1,65 @@
+export global AppRouter {
+    in-out property <string> current_page: "Workflow";
+    in-out property <length> ctx_node_x: 40px;
+    in-out property <length> ctx_node_y: 120px;
+    in-out property <length> generate_node_x: 500px;
+    in-out property <length> generate_node_y: 120px;
+    in-out property <length> sample_node_x: 50px;
+    in-out property <length> sample_node_y: 480px;
+    in-out property <length> imggen_node_x: 320px;
+    in-out property <length> imggen_node_y: 390px;
+    in-out property <length> save_node_x: 920px;
+    in-out property <length> save_node_y: 125px;
+    in-out property <length> ctx_node_width: 230px;
+    in-out property <length> ctx_node_height: 154px;
+    in-out property <length> sample_node_width: 230px;
+    in-out property <length> sample_node_height: 154px;
+    in-out property <length> imggen_node_width: 230px;
+    in-out property <length> imggen_node_height: 154px;
+    in-out property <length> generate_node_width: 230px;
+    in-out property <length> generate_node_height: 154px;
+    in-out property <length> save_node_width: 230px;
+    in-out property <length> save_node_height: 154px;
+    in-out property <string> checkpoint_path: "Illustrious-XL-v2.0.safetensors";
+    in-out property <string> diffusion_model_path: "sdxl-unet.safetensors";
+    in-out property <string> external_vae_path: "Optional / embedded";
+    in-out property <string> vae_path: "sdxl-vae.safetensors";
+    in-out property <string> clip_l_path: "clip_l.safetensors";
+    in-out property <string> t5xxl_path: "t5xxl_fp16.safetensors";
+    in-out property <string> separated_models: "false";
+    in-out property <string> backend: "diffusion=cuda0,detector=cuda0";
+    in-out property <string> threads: "Auto";
+    in-out property <string> wtype: "FP16";
+    in-out property <string> flash_attn: "false";
+    in-out property <string> max_vram: "Automatic";
+    in-out property <string> sample_method: "Euler";
+    in-out property <string> scheduler: "Karras";
+    in-out property <string> sample_steps: "20";
+    in-out property <string> eta: "0.0";
+    in-out property <string> flow_shift: "1.0";
+    in-out property <string> custom_sigmas: "Default";
+    in-out property <string> prompt: "masterpiece, best quality, highres, detailed background";
+    in-out property <string> negative_prompt: "blurry, low quality";
+    in-out property <string> width: "1024";
+    in-out property <string> height: "1344";
+    in-out property <string> batch_count: "1";
+    in-out property <string> seed: "Random";
+    in-out property <string> loras: "None";
+    in-out property <string> hires_cache: "Default";
+    callback navigate(string);
+    callback open_file(string);
+    callback save_workflow();
+    navigate(route) => { current_page = route; }
+}
+
+export global WorkflowNodes {
+    in-out property <[string]> node_ids: [];
+    in-out property <[string]> node_types: [];
+    in-out property <string> selected_id: "";
+    in-out property <bool> ctx_to_generate: true;
+    in-out property <bool> sample_to_imggen: true;
+    in-out property <bool> imggen_to_generate: true;
+    in-out property <bool> generate_to_save: true;
+    callback open_node(string);
+    callback cancel_edit();
+}

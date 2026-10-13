@@ -1,0 +1,23 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+import { AppRouter } from "../renga/router.slint";
+
+component ModelsPage inherits VerticalBox {
+    in-out property <[string]> models: [];
+    alignment: center;
+    spacing: 12px;
+    Text {
+        text: "Model Library";
+        font-size: 24px;
+        horizontal-alignment: center;
+    }
+    ListView {
+        for model_name in root.models: Text {
+            text: model_name;
+            horizontal-alignment: center;
+        }
+    }
+    Button {
+        text: "Back to Home";
+        clicked => { AppRouter.navigate("Home"); }
+    }
+}

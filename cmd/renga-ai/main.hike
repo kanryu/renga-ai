@@ -1,0 +1,68 @@
+package main
+
+import _ "github.com/kanryu/hike-gui-slint/shared"
+import "github.com/kanryu/hike-gui-slint/slint"
+import "github.com/kanryu/renga-ai/pkg/controller"
+import "github.com/kanryu/renga-ai/pkg"
+
+extern func puts(text cstring) int
+extern func __hike_stderr_write(data cstring, length int32)
+
+func main() int {
+    router := controller.NewRouter()
+
+    puts(cstring("[Renga] creating Slint UI"))
+    ui := slint.Create(pkg.Source)
+    if ui == nil {
+        diagnostic := slint.LastError()
+        if diagnostic == "" {
+            puts(cstring("[Renga] Slint UI creation failed (no native diagnostic)"))
+        } else {
+            puts(cstring("[Renga] Slint UI creation failed: " + diagnostic))
+        }
+        return 1
+    }
+    puts(cstring("[Renga] Slint UI created"))
+    defer ui.Close()
+
+    if !router.Attach(ui) {
+        puts(cstring("[Renga] router attach failed"))
+        return 1
+    }
+    puts(cstring("[Renga] router attached"))
+
+    message := slint.Message{}
+    callback := slint.CallbackEvent{}
+    for ui.IsRunning() {
+        for ui.PollEvent(&message) {
+            if !ui.DispatchEvent(&message) {
+                break
+            }
+        }
+
+        for ui.PollCallback(&callback) {
+            callbackLog := "[Renga] polled callback: " + string(callback.Name) + " arg=" + string(callback.StringArg) + "\n"
+            __hike_stderr_write(cstring(callbackLog), int32(len(callbackLog)))
+            callbackName := string(callback.Name)
+            if callbackName == "open_file" || callbackName == "AppRouter.open_file" {
+                router.HandleOpenFileCallback(&callback)
+                continue
+            }
+            if callbackName == "save_workflow" || callbackName == "AppRouter.save_workflow" {
+                router.SaveWorkflow()
+                continue
+            }
+            if callbackName == "WorkflowNodes.open_node" {
+                router.HandleNodeCallback(&callback)
+                continue
+            }
+            if callbackName == "WorkflowNodes.cancel_edit" {
+                router.CancelWorkflowEdit()
+                continue
+            }
+            router.HandleCallback(&callback)
+        }
+    }
+
+    return 0
+}
