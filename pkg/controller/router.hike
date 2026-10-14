@@ -2,6 +2,7 @@ package controller
 
 import "github.com/kanryu/hike-gui-slint/slint"
 import "std/encoding/json"
+import "github.com/kanryu/renga-ai/pkg/diffusion"
 
 extern func puts(text cstring) int
 
@@ -127,6 +128,54 @@ func (router *Router) CaptureWorkflowState() {
         router.WorkflowStateJSON = snapshot
         puts(cstring("[Renga] workflow state captured from Slint globals"))
     }
+}
+
+func (router *Router) workflowValue(name string) string {
+    if router == nil || router.UI == nil { return "" }
+    value, ok := router.UI.GetGlobalStringProperty("AppRouter", name)
+    if !ok { return "" }
+    return value
+}
+
+// GenerateWorkflow executes the values currently assembled by the workflow
+// nodes. The diffusion package converts their model filenames to models/*,
+// generates the image, applies ADetailer, and saves models/generated.webp.
+func (router *Router) GenerateWorkflow() bool {
+    if router == nil || router.UI == nil { return false }
+    backend := router.workflowValue("backend")
+    request := diffusion.WorkflowData{
+        CheckpointPath: router.workflowValue("checkpoint_path"),
+        DiffusionModelPath: router.workflowValue("diffusion_model_path"),
+        VAEPath: router.workflowValue("vae_path"),
+        ClipLPath: router.workflowValue("clip_l_path"),
+        T5XXLPath: router.workflowValue("t5xxl_path"),
+        Backend: backend,
+        ParamsBackend: backend,
+        Threads: router.workflowValue("threads"),
+        WType: router.workflowValue("wtype"),
+        SampleMethod: router.workflowValue("sample_method"),
+        Scheduler: router.workflowValue("scheduler"),
+        SampleSteps: router.workflowValue("sample_steps"),
+        Eta: router.workflowValue("eta"),
+        FlowShift: router.workflowValue("flow_shift"),
+        Prompt: router.workflowValue("prompt"),
+        NegativePrompt: router.workflowValue("negative_prompt"),
+        Width: router.workflowValue("width"),
+        Height: router.workflowValue("height"),
+        BatchCount: router.workflowValue("batch_count"),
+        Seed: router.workflowValue("seed"),
+        DetectorModelPath: router.workflowValue("detector_model_path"),
+        DetectorBackend: backend,
+        DetectorParamsBackend: backend,
+        DetailPrompt: router.workflowValue("detail_prompt"),
+        DetailNegativePrompt: router.workflowValue("detail_negative_prompt"),
+        DetailExtraArgs: router.workflowValue("detector_extra_args"),
+        InpaintWidth: router.workflowValue("inpaint_width"),
+        InpaintHeight: router.workflowValue("inpaint_height"),
+        InpaintStrength: router.workflowValue("inpaint_strength"),
+        OutputPath: "models/generated.webp",
+    }
+    return diffusion.Generate(&request)
 }
 
 func (router *Router) HandleNodeCallback(callback *slint.CallbackEvent) bool {

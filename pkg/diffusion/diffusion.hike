@@ -1,0 +1,177 @@
+package diffusion
+
+import "github.com/kanryu/hike-ai-stable-diffusion/sd"
+import _ "github.com/kanryu/hike-ai-stable-diffusion/shared"
+import "std/path"
+import "std/strconv"
+import "std/strings"
+
+const modelsDirectory string = "models"
+
+// WorkflowData is the runtime representation of the connected workflow.
+// Model filenames are supplied by the UI; model paths are normalized to the
+// repository's models directory before they reach the native package.
+type WorkflowData struct {
+    CheckpointPath string
+    DiffusionModelPath string
+    VAEPath string
+    ClipLPath string
+    T5XXLPath string
+    Backend string
+    ParamsBackend string
+    Threads string
+    WType string
+    SampleMethod string
+    Scheduler string
+    SampleSteps string
+    Eta string
+    FlowShift string
+    Prompt string
+    NegativePrompt string
+    Width string
+    Height string
+    BatchCount string
+    Seed string
+    DetectorModelPath string
+    DetectorBackend string
+    DetectorParamsBackend string
+    DetailPrompt string
+    DetailNegativePrompt string
+    DetailExtraArgs string
+    InpaintWidth string
+    InpaintHeight string
+    InpaintStrength string
+    OutputPath string
+}
+
+// ModelPath converts a workflow model value into a path relative to models/.
+// Absolute paths are deliberately reduced to their filename so saved
+// workflows remain portable between machines.
+func ModelPath(value string) string {
+    normalized := strings.ReplaceAll(value, "\\", "/")
+    if normalized == "" { return "" }
+    prefix := modelsDirectory + "/"
+    if strings.HasPrefix(normalized, prefix) { return normalized }
+    return prefix + path.Base(normalized)
+}
+
+func intValue(value string, fallback int) int {
+    parsed, err := strconv.Atoi(value)
+    if err != nil { return fallback }
+    return parsed
+}
+
+func int64Value(value string, fallback int64) int64 {
+    parsed, err := strconv.ParseInt(value, 10, 64)
+    if err != nil { return fallback }
+    return parsed
+}
+
+func floatValue(value string, fallback float32) float32 {
+    parsed, err := strconv.ParseFloat(value, 32)
+    if err != nil { return fallback }
+    return float32(parsed)
+}
+
+func weightType(value string) int {
+    if value == "F32" { return sd.TypeF32 }
+    if value == "Q4_0" { return sd.TypeQ4_0 }
+    if value == "Q8_0" { return sd.TypeQ8_0 }
+    if value == "Q4_K" { return sd.TypeQ4_K }
+    if value == "Q5_K" { return sd.TypeQ5_K }
+    if value == "Q6_K" { return sd.TypeQ6_K }
+    return sd.TypeF16
+}
+
+func sampleMethod(value string) int {
+    if value == "Euler A" { return sd.SampleEulerA }
+    if value == "Heun" { return sd.SampleHeun }
+    if value == "DPM2" { return sd.SampleDPM2 }
+    if value == "DPM++ 2M" { return sd.SampleDPMPlusPlus2M }
+    if value == "LCM" { return sd.SampleLCM }
+    return sd.SampleEuler
+}
+
+func scheduler(value string) int {
+    if value == "Discrete" { return sd.SchedulerDiscrete }
+    if value == "Exponential" { return sd.SchedulerExponential }
+    if value == "Simple" { return sd.SchedulerSimple }
+    return sd.SchedulerKarras
+}
+
+// Generate executes the connected generation workflow and writes its final
+// image to OutputPath. The generated image is passed through ADetailer when a
+// detector model is configured; otherwise the original image is saved.
+func Generate(workflow *WorkflowData) bool {
+    if workflow == nil { return false }
+
+    contextParams := sd.ContextParams{}
+    sd.InitContextParams(&contextParams)
+    contextParams.ModelPath = ModelPath(workflow.CheckpointPath)
+    contextParams.DiffusionModelPath = ModelPath(workflow.DiffusionModelPath)
+    contextParams.VAEPath = ModelPath(workflow.VAEPath)
+    contextParams.ClipLPath = ModelPath(workflow.ClipLPath)
+    contextParams.T5XXLPath = ModelPath(workflow.T5XXLPath)
+    contextParams.NThreads = intValue(workflow.Threads, 0)
+    contextParams.WType = weightType(workflow.WType)
+    contextParams.Backend = workflow.Backend
+    contextParams.ParamsBackend = workflow.ParamsBackend
+
+    context := sd.NewContext(&contextParams)
+    if context == nil { return false }
+    defer context.Close()
+
+    sampleParams := sd.SampleParams{}
+    sd.InitSampleParams(&sampleParams)
+    sampleParams.SampleMethod = sampleMethod(workflow.SampleMethod)
+    sampleParams.Scheduler = scheduler(workflow.Scheduler)
+    sampleParams.SampleSteps = intValue(workflow.SampleSteps, 20)
+    sampleParams.Eta = floatValue(workflow.Eta, 0.0)
+    sampleParams.FlowShift = floatValue(workflow.FlowShift, 1.0)
+
+    request := sd.ImageGenParams{}
+    sd.InitImageGenParams(&request)
+    request.Prompt = workflow.Prompt
+    request.NegativePrompt = workflow.NegativePrompt
+    request.Width = intValue(workflow.Width, 1024)
+    request.Height = intValue(workflow.Height, 1024)
+    request.BatchCount = intValue(workflow.BatchCount, 1)
+    request.Seed = int64Value(workflow.Seed, -1)
+    request.SampleParams = sampleParams
+
+    images, imageCount, generated := context.Generate(&request)
+    if !generated || images == nil || imageCount <= 0 { return false }
+    defer sd.FreeImages(images, imageCount)
+
+    finalImage := images
+    var detailed *sd.Image
+    detailedCount := 0
+    detailedOK := false
+    var detector *sd.Adetailer
+    detectorPath := ModelPath(workflow.DetectorModelPath)
+    if detectorPath != "" {
+        detector = sd.NewAdetailer(detectorPath, contextParams.NThreads, workflow.DetectorBackend, workflow.DetectorParamsBackend)
+        if detector != nil {
+            defer detector.Close()
+            detailParams := sd.AdetailerParams{
+                Prompt: workflow.DetailPrompt,
+                NegativePrompt: workflow.DetailNegativePrompt,
+                ExtraAdArgs: workflow.DetailExtraArgs,
+            }
+            inpaint := request
+            inpaint.Width = intValue(workflow.InpaintWidth, 512)
+            inpaint.Height = intValue(workflow.InpaintHeight, 512)
+            inpaint.Strength = floatValue(workflow.InpaintStrength, 0.4)
+            detailed, detailedCount, detailedOK = detector.DetailImage(context, images[0], detailParams, &inpaint)
+            if detailedOK && detailed != nil && detailedCount > 0 {
+                finalImage = detailed
+            }
+        }
+    }
+
+    outputPath := workflow.OutputPath
+    if outputPath == "" { outputPath = modelsDirectory + "/generated.webp" }
+    saved := sd.SaveWebP(finalImage, outputPath, 100.0)
+    if detailedOK && detailed != nil && detailedCount > 0 { sd.FreeImages(detailed, detailedCount) }
+    return saved
+}

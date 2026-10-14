@@ -1,0 +1,80 @@
+import { AppRouter } from "../../renga/router.slint";
+import { NodePanel } from "./node_panel.slint";
+
+export component LoadModelNode inherits NodePanel {
+    node_x <=> AppRouter.ctx_node_x; node_y <=> AppRouter.ctx_node_y;
+    node_width <=> AppRouter.ctx_node_width; node_height <=> AppRouter.ctx_node_height;
+    node_title: "Load Model"; node_kind: "Struct input";
+    summary_line_1: "model: " + AppRouter.checkpoint_path;
+    summary_line_2: "threads: " + AppRouter.threads + " / " + AppRouter.wtype;
+    summary_line_3: "Model context parameters"; input_count: 0;
+    output_pin_label: "Model"; accent_color: #fb923c;
+}
+
+export component GenerateImageNode inherits NodePanel {
+    node_x <=> AppRouter.generate_node_x; node_y <=> AppRouter.generate_node_y;
+    node_width <=> AppRouter.generate_node_width; node_height <=> AppRouter.generate_node_height;
+    node_title: "Generate Image"; node_kind: "Image generation";
+    summary_line_1: "rendering: SDCTX + SDIMG";
+    summary_line_2: "size: " + AppRouter.width + " x " + AppRouter.height;
+    summary_line_3: "batch count: " + AppRouter.batch_count; input_count: 3;
+    input_1_label: "Prompt"; input_2_label: "Model"; input_3_label: "Sampler";
+    input_1_color: #facc15; input_2_color: #fb923c; input_3_color: #a78bfa;
+    output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
+}
+
+export component SamplerSchedulerNode inherits NodePanel {
+    node_x <=> AppRouter.sample_node_x; node_y <=> AppRouter.sample_node_y;
+    node_width <=> AppRouter.sample_node_width; node_height <=> AppRouter.sample_node_height;
+    node_title: "Sampler & Scheduler"; node_kind: "Struct input";
+    summary_line_1: "method: " + AppRouter.sample_method;
+    summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler;
+    summary_line_3: "Sampler parameters"; input_count: 0;
+    output_pin_label: "Sampler"; accent_color: #a78bfa;
+}
+
+export component PromptNode inherits NodePanel {
+    node_x <=> AppRouter.imggen_node_x; node_y <=> AppRouter.imggen_node_y;
+    node_width <=> AppRouter.imggen_node_width; node_height <=> AppRouter.imggen_node_height;
+    node_title: "Prompt"; node_kind: "Text prompt";
+    summary_line_1: AppRouter.prompt; summary_line_2: AppRouter.negative_prompt;
+    summary_label_1: "Positive Prompt"; summary_label_2: "Negative Prompt";
+    summary_line_1_height: 64px; summary_line_2_height: 64px;
+    show_line_labels: true; body_line_count: 2; input_count: 0;
+    output_pin_label: "Prompt"; output_pin_color: #facc15; accent_color: #facc15;
+}
+
+export component SaveImageNode inherits NodePanel {
+    node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y;
+    node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height;
+    node_title: "Save Image"; node_kind: "Image output";
+    summary_line_1: "image: generated output"; summary_line_2: "format: WebP";
+    body_line_count: 2; input_1_label: "Image"; show_output_pin: false;
+    input_1_color: #65a9ff; accent_color: #65a9ff;
+}
+
+export component LoadDetectorNode inherits NodePanel {
+    node_x <=> AppRouter.detector_node_x; node_y <=> AppRouter.detector_node_y;
+    node_width <=> AppRouter.detector_node_width; node_height <=> AppRouter.detector_node_height;
+    node_title: "Load Detector"; node_kind: "ADetailer detector";
+    summary_line_1: AppRouter.detector_model_path;
+    summary_line_2: "backend: " + AppRouter.backend;
+    summary_line_3: "Face detection model"; input_count: 0;
+    output_pin_label: "Detector"; output_pin_color: #fb923c; accent_color: #fb923c;
+}
+
+export component DetailImageNode inherits NodePanel {
+    node_x <=> AppRouter.detail_node_x; node_y <=> AppRouter.detail_node_y;
+    node_width <=> AppRouter.detail_node_width; node_height <=> AppRouter.detail_node_height;
+    node_title: "Detail Image"; node_kind: "E-Detailer processing";
+    summary_line_1: AppRouter.detail_prompt; summary_line_2: AppRouter.detail_negative_prompt;
+    summary_line_3: "inpaint: " + AppRouter.inpaint_width + " x " + AppRouter.inpaint_height;
+    summary_line_4: "strength: " + AppRouter.inpaint_strength + " / confidence=0.05";
+    summary_line_5: "mask_blur=4 / inpaint_padding=32"; summary_line_6: AppRouter.detector_extra_args;
+    summary_label_1: "Positive Prompt"; summary_label_2: "Negative Prompt";
+    summary_line_1_height: 64px; summary_line_2_height: 64px;
+    show_line_labels: true; body_line_count: 6; input_count: 2;
+    input_1_label: "Image"; input_2_label: "Detector";
+    input_1_color: #65a9ff; input_2_color: #fb923c;
+    output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
+}

@@ -1,0 +1,78 @@
+export component NodePanel inherits Rectangle {
+    in property <string> node_title;
+    in property <string> node_kind;
+    in property <string> summary_line_1: "";
+    in property <string> summary_line_2: "";
+    in property <string> summary_line_3: "";
+    in property <string> summary_line_4: "";
+    in property <string> summary_line_5: "";
+    in property <string> summary_line_6: "";
+    in property <string> summary_label_1: "";
+    in property <string> summary_label_2: "";
+    in property <string> summary_label_3: "";
+    in property <string> summary_label_4: "";
+    in property <string> summary_label_5: "";
+    in property <string> summary_label_6: "";
+    in property <bool> show_line_labels: false;
+    in property <length> summary_line_1_height: 26px;
+    in property <length> summary_line_2_height: 26px;
+    in property <length> summary_line_3_height: 26px;
+    in property <length> summary_line_4_height: 26px;
+    in property <length> summary_line_5_height: 26px;
+    in property <length> summary_line_6_height: 26px;
+    in property <int> body_line_count: 3;
+    in property <int> input_count: 1;
+    in property <color> input_1_color: root.accent_color;
+    in property <color> input_2_color: root.accent_color;
+    in property <color> input_3_color: root.accent_color;
+    in property <string> input_1_label: "";
+    in property <string> input_2_label: "";
+    in property <string> input_3_label: "";
+    in property <color> accent_color;
+    in property <color> output_pin_color: root.accent_color;
+    in property <string> output_pin_label: "";
+    in property <bool> show_output_pin: true;
+    in-out property <length> node_x: 0px;
+    in-out property <length> node_y: 0px;
+    in-out property <length> node_width: 230px;
+    in-out property <length> node_height: 154px;
+    callback open;
+    out property <length> in_pin_1_x: root.node_x;
+    out property <length> pin_center_y: root.input_count >= 2 ? root.node_height / 2 + 9px : root.node_height / 2;
+    out property <length> in_pin_1_y: root.node_y + (root.input_count >= 2 ? root.pin_center_y - 28px : root.pin_center_y);
+    out property <length> in_pin_2_x: root.node_x;
+    out property <length> in_pin_2_y: root.node_y + root.pin_center_y;
+    out property <length> in_pin_3_x: root.node_x;
+    out property <length> in_pin_3_y: root.node_y + root.pin_center_y + 28px;
+    out property <length> out_pin_x: root.node_x + root.width;
+    out property <length> out_pin_y: root.node_y + root.pin_center_y;
+    property <length> row_1_y: root.show_line_labels ? 64px : 50px;
+    property <length> row_2_y: root.show_line_labels ? root.row_1_y + root.summary_line_1_height + 20px : 82px;
+    property <length> row_3_y: root.show_line_labels ? root.row_2_y + root.summary_line_2_height + (root.summary_label_3 != "" ? 20px : 8px) : 114px;
+    property <length> row_4_y: root.show_line_labels ? root.row_3_y + root.summary_line_3_height + (root.summary_label_4 != "" ? 20px : 8px) : 146px;
+    property <length> row_5_y: root.show_line_labels ? root.row_4_y + root.summary_line_4_height + (root.summary_label_5 != "" ? 20px : 8px) : 178px;
+    property <length> row_6_y: root.show_line_labels ? root.row_5_y + root.summary_line_5_height + (root.summary_label_6 != "" ? 20px : 8px) : 210px;
+    x: root.node_x; y: root.node_y; width: root.node_width; height: root.node_height;
+    background: #202024; border-width: 1px; border-color: #3f3f46; border-radius: 8px;
+    Rectangle { x: 0px; y: 0px; width: 100%; height: 38px; background: root.accent_color; border-radius: 8px; Text { x: 14px; y: 9px; text: root.node_title; color: #ffffff; font-size: 15px; font-weight: 700; } }
+    Text { x: 16px; y: root.row_1_y - 18px; text: root.summary_label_1; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_1 != ""; }
+    Text { x: 16px; y: root.row_2_y - 18px; text: root.summary_label_2; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_2 != ""; }
+    Text { x: 16px; y: root.row_3_y - 18px; text: root.summary_label_3; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_3 != ""; }
+    Text { x: 16px; y: root.row_4_y - 18px; text: root.summary_label_4; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_4 != ""; }
+    Text { x: 16px; y: root.row_5_y - 18px; text: root.summary_label_5; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_5 != ""; }
+    Text { x: 16px; y: root.row_6_y - 18px; text: root.summary_label_6; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_6 != ""; }
+    Rectangle { x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height; background: #121214; border-radius: 4px; clip: true; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_2_y; width: parent.width - 32px; height: root.summary_line_2_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 2 && root.summary_line_2 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_3_y; width: parent.width - 32px; height: root.summary_line_3_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 3 && root.summary_line_3 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_3; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_4_y; width: parent.width - 32px; height: root.summary_line_4_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 4 && root.summary_line_4 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_4; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_5_y; width: parent.width - 32px; height: root.summary_line_5_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 5 && root.summary_line_5 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_5; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_6_y; width: parent.width - 32px; height: root.summary_line_6_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 6 && root.summary_line_6 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_6; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    if root.input_count >= 1: Rectangle { x: -7px; y: root.in_pin_1_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_1_color; }
+    if root.input_count >= 2: Rectangle { x: -7px; y: root.in_pin_2_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_2_color; }
+    if root.input_count >= 3: Rectangle { x: -7px; y: root.in_pin_3_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.input_3_color; }
+    if root.show_output_pin: Rectangle { x: root.node_width - 7px; y: root.out_pin_y - root.node_y - 7px; width: 14px; height: 14px; border-radius: 7px; background: root.output_pin_color; }
+    Text { x: -112px; y: root.in_pin_1_y - root.node_y - 8px; width: 98px; text: root.input_1_label; color: root.input_1_color; font-size: 11px; horizontal-alignment: right; visible: root.input_1_label != ""; }
+    Text { x: -112px; y: root.in_pin_2_y - root.node_y - 8px; width: 98px; text: root.input_2_label; color: root.input_2_color; font-size: 11px; horizontal-alignment: right; visible: root.input_2_label != ""; }
+    Text { x: -112px; y: root.in_pin_3_y - root.node_y - 8px; width: 98px; text: root.input_3_label; color: root.input_3_color; font-size: 11px; horizontal-alignment: right; visible: root.input_3_label != ""; }
+    Text { x: root.node_width + 14px; y: root.out_pin_y - root.node_y - 8px; width: 90px; text: root.output_pin_label; color: root.output_pin_color; font-size: 11px; visible: root.show_output_pin && root.output_pin_label != ""; }
+}

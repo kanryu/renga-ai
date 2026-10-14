@@ -4,38 +4,18 @@ param(
 )
 
 $root = Get-Location
-$uiFiles = @(
-    "ui/renga/router.slint",
-    "ui/views/home_page.slint",
-    "ui/views/workflow_page.slint",
-    "ui/views/node_pages.slint",
-    "ui/views/models_page.slint",
-    "ui/views/settings_page.slint",
-    "ui/router_view.slint",
-    "ui/app_window.slint"
-)
-
-$parts = @('import { Button, TextEdit, VerticalBox, ListView } from "std-widgets.slint";', "")
-foreach ($file in $uiFiles) {
-    $text = [System.IO.File]::ReadAllText((Join-Path $root $file), [System.Text.Encoding]::UTF8)
-    $text = [regex]::Replace($text, '(?m)^\s*import\s+.*?;\s*$', '')
-    if ($file -eq "ui/views/workflow_page.slint") {
-        $gridTilePath = ((Join-Path $root "pkg/ui_code/grid_tile.png") -replace '\\', '/')
-        $text = $text.Replace('__RENGA_GRID_TILE__', $gridTilePath)
-    }
-    $parts += "// --- $file ---"
-    $parts += $text.Trim()
-    $parts += ""
-}
-$source = ($parts -join "`n")
-
 $bundlePath = Join-Path $root $InputPath
+$source = [System.IO.File]::ReadAllText($bundlePath, [System.Text.Encoding]::UTF8)
+$gridTilePath = ((Join-Path $root "pkg/ui_code/grid_tile.png") -replace '\\', '/')
+$source = $source.Replace('__RENGA_GRID_TILE__', $gridTilePath)
+$source = (($source -split "`r?`n") | ForEach-Object { $_.TrimEnd() }) -join "`n"
 [System.IO.File]::WriteAllText($bundlePath, $source, [System.Text.Encoding]::UTF8)
+
 $escaped = $source.Replace('\', '\\').Replace('"', '\"').Replace("`r`n", '\n').Replace("`n", '\n')
 $output = @"
 package pkg
 
-// Generated from ui_code/appbundle.slint by tools/embed_ui.ps1.
+// Generated from ui_code/appbundle.slint by hikec tool bds and tools/embed_ui.ps1.
 const Source string = "$escaped"
 "@
-[System.IO.File]::WriteAllText((Join-Path (Get-Location) $OutputPath), $output, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $root $OutputPath), $output, [System.Text.Encoding]::UTF8)

@@ -1,4 +1,4 @@
-import { Button } from "std-widgets.slint";
+import { Button, LineEdit, TextEdit } from "std-widgets.slint";
 import { AppRouter } from "../renga/router.slint";
 
 component NodePage inherits Rectangle {
@@ -65,13 +65,12 @@ component EditorField inherits Rectangle {
     border-width: 1px;
     border-color: #465264;
     border-radius: 4px;
-    TextInput {
+    LineEdit {
         x: 10px;
         y: 4px;
         width: parent.width - 20px;
         height: parent.height - 8px;
         text <=> root.value;
-        color: #f5f7fa;
         font-size: 13px;
     }
 }

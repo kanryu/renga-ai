@@ -52,6 +52,15 @@ func main() int {
                 router.SaveWorkflow()
                 continue
             }
+            if callbackName == "run_workflow" || callbackName == "AppRouter.run_workflow" {
+                puts(cstring("[Renga] workflow run: collecting node values and starting generation"))
+                if router.GenerateWorkflow() {
+                    puts(cstring("[Renga] workflow run completed: models/generated.webp"))
+                } else {
+                    puts(cstring("[Renga] workflow run failed"))
+                }
+                continue
+            }
             if callbackName == "WorkflowNodes.open_node" {
                 router.HandleNodeCallback(&callback)
                 continue
