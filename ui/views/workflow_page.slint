@@ -170,7 +170,8 @@ export component WorkflowPage inherits Rectangle {
     in-out property <length> wire_menu_x: 0px;
     in-out property <length> wire_menu_y: 0px;
     in-out property <int> pressed_node: -1;
-    in-out property <bool> image_preview_open: false;
+    in-out property <bool> image_preview_open <=> AppRouter.image_preview_open;
+    in-out property <int> image_preview_index <=> AppRouter.image_preview_index;
     property <bool> cursor_over_title:
         (drag_surface.mouse-x >= ctx_node.node_x && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width && drag_surface.mouse-y >= ctx_node.node_y && drag_surface.mouse-y <= ctx_node.node_y + 38px)
         || (drag_surface.mouse-x >= generate_node.node_x && drag_surface.mouse-x <= generate_node.node_x + generate_node.width && drag_surface.mouse-y >= generate_node.node_y && drag_surface.mouse-y <= generate_node.node_y + 38px)
@@ -504,19 +505,10 @@ export component WorkflowPage inherits Rectangle {
             }
         }
     }
-    TouchArea {
-        x: save_node.node_x + 16px;
-        y: save_node.node_y + 50px;
-        width: save_node.width - 32px;
-        height: save_node.summary_line_1_height;
-        visible: !root.image_preview_open && AppRouter.generated_image.width > 0;
-        mouse-cursor: pointer;
-        clicked => { root.image_preview_open = true; }
-    }
     Rectangle {
         visible: root.image_preview_open;
         x: 0px; y: 0px; width: root.width; height: root.height;
-        background: #00000080;
+        background: #8080804d;
     }
     TouchArea {
         visible: root.image_preview_open;
@@ -527,7 +519,7 @@ export component WorkflowPage inherits Rectangle {
     Image {
         visible: root.image_preview_open;
         x: 24px; y: 24px; width: root.width - 48px; height: root.height - 48px;
-        source: AppRouter.generated_image;
+        source: AppRouter.output_images[root.image_preview_index];
         image-fit: contain;
     }
     TouchArea {

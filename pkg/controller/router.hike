@@ -5,6 +5,7 @@ import "std/encoding/json"
 import "github.com/kanryu/renga-ai/pkg/diffusion"
 import "github.com/kanryu/renga-ai/pkg/modelget"
 import "github.com/kanryu/renga-ai/pkg/output"
+import "std/strconv"
 
 extern func puts(text cstring) int
 
@@ -158,6 +159,9 @@ func (router *Router) GenerateWorkflow() int {
     if modelStatus < 0 { return -1 }
     if modelStatus > 0 { return 1 }
 
+    batchCount, batchErr := strconv.Atoi(router.workflowValue("batch_count"))
+    if batchErr != nil || batchCount <= 0 { batchCount = 1 }
+    outputPaths := output.NextImagePaths(batchCount)
     request := diffusion.WorkflowData{
         CheckpointPath: router.workflowValue("checkpoint_path"),
         SeparatedModels: router.workflowValue("separated_models"),
@@ -189,18 +193,18 @@ func (router *Router) GenerateWorkflow() int {
         InpaintWidth: router.workflowValue("inpaint_width"),
         InpaintHeight: router.workflowValue("inpaint_height"),
         InpaintStrength: router.workflowValue("inpaint_strength"),
-        OutputPath: output.NextImagePath(),
+        OutputPaths: outputPaths,
     }
     if !diffusion.Generate(&request) { return -1 }
-    router.UI.SetGlobalProperty("AppRouter", "generated_image_path", request.OutputPath)
-    generatedImage := slint.NewImageValue(request.OutputPath)
-    if generatedImage == nil {
-        puts(cstring("[Renga] generated image could not be loaded into Slint"))
+    router.UI.SetGlobalProperty("AppRouter", "generated_image_path", outputPaths[0])
+    generatedImages := slint.NewImageArrayValue(outputPaths)
+    if generatedImages == nil {
+        puts(cstring("[Renga] generated image array could not be loaded into Slint"))
         return -1
     }
-    defer generatedImage.Close()
-    if !router.UI.SetGlobalPropertyValue("AppRouter", "generated_image", generatedImage) {
-        puts(cstring("[Renga] generated image property update failed"))
+    defer generatedImages.Close()
+    if !router.UI.SetGlobalPropertyValue("AppRouter", "output_images", generatedImages) {
+        puts(cstring("[Renga] generated image array property update failed"))
         return -1
     }
     return 2

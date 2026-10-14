@@ -1,12 +1,10 @@
 package output
 
 import "std/strconv"
-import "std/strings"
 
 func system(command cstring) int
-func popen(command cstring, mode cstring) *byte
-func pclose(stream *byte) int
-func fread(buffer *byte, size int, count int, stream *byte) int
+func fopen(filename cstring, mode cstring) *byte
+func fclose(file *byte) int
 
 const outputDirectory string = "output"
 const outputPrefix string = "renga_"
@@ -18,42 +16,36 @@ func zeroPad5(value int) string {
     return text
 }
 
-func sequenceNumber(filename string) int {
-    name := strings.Trim(filename, " \t\r\n")
-    if !strings.HasPrefix(name, outputPrefix) || !strings.HasSuffix(name, outputSuffix) { return 0 }
-    start := len(outputPrefix)
-    end := len(name) - len(outputSuffix)
-    if end <= start || end-start != 5 { return 0 }
-    value, err := strconv.Atoi(name[start:end])
-    if err != nil { return 0 }
-    return value
+func imagePath(number int) string {
+    return outputDirectory + "/" + outputPrefix + zeroPad5(number) + outputSuffix
+}
+
+func imageExists(number int) bool {
+    file := fopen(cstring(imagePath(number)), cstring("rb"))
+    if file == nil { return false }
+    fclose(file)
+    return true
 }
 
 // NextImagePath creates the output directory and returns the next sequential
 // filename after scanning existing renga_#####.webp files.
 func NextImagePath() string {
+    paths := NextImagePaths(1)
+    if len(paths) == 0 { return outputDirectory + "/" + outputPrefix + "00001" + outputSuffix }
+    return paths[0]
+}
+
+// NextImagePaths returns sequential output paths for a batch of images.
+func NextImagePaths(count int) []string {
+    if count <= 0 { return []string{} }
     system(cstring("if not exist output mkdir output"))
-    stream := popen(cstring("cmd.exe /c dir /b \"output\\年賀_*.webp\" 2>nul"), cstring("r"))
     maximum := 0
-    if stream != nil {
-        line := ""
-        buffer := make([]byte, 1)
-        for {
-            count := fread((*byte)(buffer), 1, 1, stream)
-            if count <= 0 { break }
-            if buffer[0] == byte(10) {
-                number := sequenceNumber(line)
-                if number > maximum { maximum = number }
-                line = ""
-            } else {
-                line = line + string(buffer[0])
-            }
-        }
-        if line != "" {
-            number := sequenceNumber(line)
-            if number > maximum { maximum = number }
-        }
-        pclose(stream)
+    for number := 1; number <= 99999; number++ {
+        if imageExists(number) && number > maximum { maximum = number }
     }
-    return outputDirectory + "/" + outputPrefix + zeroPad5(maximum+1) + outputSuffix
+    paths := make([]string, count)
+    for i := 0; i < count; i++ {
+        paths[i] = imagePath(maximum + 1 + i)
+    }
+    return paths
 }

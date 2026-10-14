@@ -62,7 +62,9 @@ export global AppRouter {
     in-out property <string> inpaint_height: "512";
     in-out property <string> inpaint_strength: "0.4";
     in-out property <string> generated_image_path: "";
-    in-out property <image> generated_image;
+    in-out property <[image]> output_images: [];
+    in-out property <bool> image_preview_open: false;
+    in-out property <int> image_preview_index: 0;
     callback navigate(string);
     callback open_file(string);
     callback save_workflow();

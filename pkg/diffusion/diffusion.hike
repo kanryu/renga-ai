@@ -43,7 +43,7 @@ type WorkflowData struct {
     InpaintWidth string
     InpaintHeight string
     InpaintStrength string
-    OutputPath string
+    OutputPaths []string
 }
 
 // ModelPath converts a workflow model value into a path relative to models/.
@@ -114,8 +114,8 @@ func scheduler(value string) int {
 }
 
 // Generate executes the connected generation workflow and writes its final
-// image to OutputPath. The generated image is passed through ADetailer when a
-// detector model is configured; otherwise the original image is saved.
+// image batch to OutputPaths. Each generated image is passed through ADetailer
+// when a detector model is configured, then saved to its own output path.
 func Generate(workflow *WorkflowData) bool {
     if workflow == nil { return false }
     if !EnsureModels(workflow) { return false }
@@ -158,36 +158,36 @@ func Generate(workflow *WorkflowData) bool {
     if !generated || images == nil || imageCount <= 0 { return false }
     defer sd.FreeImages(images, imageCount)
 
-    var finalImage *sd.Image
-    finalImage = images
-    var detailed *sd.Image
-    detailedCount := 0
-    detailedOK := false
     var detector *sd.Adetailer
     detectorPath := ModelPath(workflow.DetectorModelPath)
     if detectorPath != "" {
         detector = sd.NewAdetailer(detectorPath, contextParams.NThreads, workflow.DetectorBackend, workflow.DetectorParamsBackend)
-        if detector != nil {
-            defer detector.Close()
-            detailParams := sd.AdetailerParams{
-                Prompt: workflow.DetailPrompt,
-                NegativePrompt: workflow.DetailNegativePrompt,
-                ExtraAdArgs: workflow.DetailExtraArgs,
-            }
-            inpaint := request
-            inpaint.Width = intValue(workflow.InpaintWidth, 512)
-            inpaint.Height = intValue(workflow.InpaintHeight, 512)
-            inpaint.Strength = floatValue(workflow.InpaintStrength, 0.4)
-            detailed, detailedCount, detailedOK = detector.DetailImage(context, images[0], detailParams, &inpaint)
-            if detailedOK && detailed != nil && detailedCount > 0 {
-                finalImage = detailed
-            }
-        }
+        if detector != nil { defer detector.Close() }
     }
+    if len(workflow.OutputPaths) < imageCount { return false }
 
-    outputPath := workflow.OutputPath
-    if outputPath == "" { outputPath = "output/renga_00001.webp" }
-    saved := sd.SaveWebP(finalImage, outputPath, 100.0)
-    if detailedOK && detailed != nil && detailedCount > 0 { sd.FreeImages(detailed, detailedCount) }
-    return saved
+    detailParams := sd.AdetailerParams{
+        Prompt: workflow.DetailPrompt,
+        NegativePrompt: workflow.DetailNegativePrompt,
+        ExtraAdArgs: workflow.DetailExtraArgs,
+    }
+    inpaint := request
+    inpaint.Width = intValue(workflow.InpaintWidth, 512)
+    inpaint.Height = intValue(workflow.InpaintHeight, 512)
+    inpaint.Strength = floatValue(workflow.InpaintStrength, 0.4)
+
+    for i := 0; i < imageCount; i++ {
+        finalImage := &images[i]
+        var detailed *sd.Image
+        detailedCount := 0
+        detailedOK := false
+        if detector != nil {
+            detailed, detailedCount, detailedOK = detector.DetailImage(context, images[i], detailParams, &inpaint)
+            if detailedOK && detailed != nil && detailedCount > 0 { finalImage = &detailed[0] }
+        }
+        saved := sd.SaveWebP(finalImage, workflow.OutputPaths[i], 100.0)
+        if detailed != nil && detailedCount > 0 { sd.FreeImages(detailed, detailedCount) }
+        if !saved { return false }
+    }
+    return true
 }
