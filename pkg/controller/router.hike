@@ -3,6 +3,8 @@ package controller
 import "github.com/kanryu/hike-gui-slint/slint"
 import "std/encoding/json"
 import "github.com/kanryu/renga-ai/pkg/diffusion"
+import "github.com/kanryu/renga-ai/pkg/modelget"
+import "github.com/kanryu/renga-ai/pkg/output"
 
 extern func puts(text cstring) int
 
@@ -98,7 +100,7 @@ func (router *Router) ApplyDefaultWorkflow() {
     ui.SetGlobalNumberProperty("AppRouter", "sample_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "sample_node_height", 162.0)
     ui.SetGlobalNumberProperty("AppRouter", "imggen_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "imggen_node_height", 220.0)
     ui.SetGlobalNumberProperty("AppRouter", "generate_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "generate_node_height", 162.0)
-    ui.SetGlobalNumberProperty("AppRouter", "save_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "save_node_height", 136.0)
+    ui.SetGlobalNumberProperty("AppRouter", "save_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "save_node_height", 280.0)
     ui.SetGlobalNumberProperty("AppRouter", "detector_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "detector_node_height", 162.0)
     ui.SetGlobalNumberProperty("AppRouter", "detail_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "detail_node_height", 360.0)
     ui.SetGlobalProperty("AppRouter", "checkpoint_path", "Illustrious-XL-v2.0.safetensors"); ui.SetGlobalProperty("AppRouter", "diffusion_model_path", "sdxl-unet.safetensors"); ui.SetGlobalProperty("AppRouter", "external_vae_path", "Optional / embedded"); ui.SetGlobalProperty("AppRouter", "vae_path", "sdxl-vae.safetensors"); ui.SetGlobalProperty("AppRouter", "clip_l_path", "clip_l.safetensors"); ui.SetGlobalProperty("AppRouter", "t5xxl_path", "t5xxl_fp16.safetensors")
@@ -140,11 +142,25 @@ func (router *Router) workflowValue(name string) string {
 // GenerateWorkflow executes the values currently assembled by the workflow
 // nodes. The diffusion package converts their model filenames to models/*,
 // generates the image, applies ADetailer, and saves models/generated.webp.
-func (router *Router) GenerateWorkflow() bool {
-    if router == nil || router.UI == nil { return false }
+func (router *Router) GenerateWorkflow() int {
+    if router == nil || router.UI == nil { return -1 }
     backend := router.workflowValue("backend")
+    separatedModels := router.workflowValue("separated_models")
+    modelFiles := []string{router.workflowValue("checkpoint_path"), router.workflowValue("detector_model_path")}
+    if separatedModels == "true" {
+        modelFiles = append(modelFiles,
+            router.workflowValue("diffusion_model_path"),
+            router.workflowValue("vae_path"),
+            router.workflowValue("clip_l_path"),
+            router.workflowValue("t5xxl_path"))
+    }
+    modelStatus := modelget.PrepareModels(modelFiles)
+    if modelStatus < 0 { return -1 }
+    if modelStatus > 0 { return 1 }
+
     request := diffusion.WorkflowData{
         CheckpointPath: router.workflowValue("checkpoint_path"),
+        SeparatedModels: router.workflowValue("separated_models"),
         DiffusionModelPath: router.workflowValue("diffusion_model_path"),
         VAEPath: router.workflowValue("vae_path"),
         ClipLPath: router.workflowValue("clip_l_path"),
@@ -173,9 +189,21 @@ func (router *Router) GenerateWorkflow() bool {
         InpaintWidth: router.workflowValue("inpaint_width"),
         InpaintHeight: router.workflowValue("inpaint_height"),
         InpaintStrength: router.workflowValue("inpaint_strength"),
-        OutputPath: "models/generated.webp",
+        OutputPath: output.NextImagePath(),
     }
-    return diffusion.Generate(&request)
+    if !diffusion.Generate(&request) { return -1 }
+    router.UI.SetGlobalProperty("AppRouter", "generated_image_path", request.OutputPath)
+    generatedImage := slint.NewImageValue(request.OutputPath)
+    if generatedImage == nil {
+        puts(cstring("[Renga] generated image could not be loaded into Slint"))
+        return -1
+    }
+    defer generatedImage.Close()
+    if !router.UI.SetGlobalPropertyValue("AppRouter", "generated_image", generatedImage) {
+        puts(cstring("[Renga] generated image property update failed"))
+        return -1
+    }
+    return 2
 }
 
 func (router *Router) HandleNodeCallback(callback *slint.CallbackEvent) bool {
@@ -397,7 +425,7 @@ func (router *Router) LoadWorkflowContent(content string) bool {
         if nodeID == "generate-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "generate_node_height", height.AsFloat()) } }
         if nodeID == "detector-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detector_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detector_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detector_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detector_node_height", height.AsFloat()) } }
         if nodeID == "detail-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detail_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detail_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detail_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "detail_node_height", height.AsFloat()) } }
-        if nodeID == "save-webp-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_width", width.AsFloat()) }; if height != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_height", height.AsFloat()) } }
+        if nodeID == "save-webp-1" { if x != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_x", x.AsFloat()) }; if y != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_y", y.AsFloat()) }; if width != nil { router.UI.SetGlobalNumberProperty("AppRouter", "save_node_width", width.AsFloat()) }; if height != nil { saveHeight := height.AsFloat(); if saveHeight < 280.0 { saveHeight = 280.0 }; router.UI.SetGlobalNumberProperty("AppRouter", "save_node_height", saveHeight) } }
 
         params := node.Get("parameters")
         if params == nil { continue }

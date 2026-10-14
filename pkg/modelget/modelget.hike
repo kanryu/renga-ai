@@ -1,0 +1,112 @@
+package modelget
+
+import "std/path"
+import "std/strings"
+
+func fopen(filename cstring, mode cstring) *byte
+func fclose(stream *byte) int
+func fseek(stream *byte, offset int, origin int) int
+func ftell(stream *byte) int
+func fread(buffer *byte, size int, count int, stream *byte) int
+func malloc(size int) *byte
+func rename(oldPath cstring, newPath cstring) int
+func remove(path cstring) int
+func system(command cstring) int
+
+const modelsDirectory string = "models"
+const modelsManifest string = "models.toml"
+
+func readTextFile(filename string) string {
+    stream := fopen(cstring(filename), cstring("rb"))
+    if stream == nil { return "" }
+    fseek(stream, 0, 2)
+    size := ftell(stream)
+    fseek(stream, 0, 0)
+    if size <= 0 { fclose(stream); return "" }
+    buffer := malloc(size + 1)
+    if buffer == nil { fclose(stream); return "" }
+    fread(buffer, 1, size, stream)
+    fclose(stream)
+    buffer[size] = 0
+    return string(buffer)
+}
+
+func modelURL(filename string) string {
+    manifest := readTextFile(modelsManifest)
+    lines := strings.Split(manifest, "\n")
+    wanted := path.Base(strings.ReplaceAll(filename, "\\", "/"))
+    for i := 0; i < len(lines); i = i + 1 {
+        line := strings.Trim(lines[i], " \t\r")
+        if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") { continue }
+        separator := strings.Index(line, "=")
+        if separator < 0 { continue }
+        key := strings.Trim(line[0:separator], " \t\r")
+        value := strings.Trim(line[separator+1:len(line)], " \t\r")
+        if strings.HasPrefix(key, "\"") && strings.HasSuffix(key, "\"") { key = key[1:len(key)-1] }
+        if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") { value = value[1:len(value)-1] }
+        if key == wanted { return value }
+    }
+    return ""
+}
+
+func IsAvailable(filename string) bool {
+    normalized := path.Base(strings.ReplaceAll(filename, "\\", "/"))
+    if normalized == "" || normalized == "." || normalized == "Optional / embedded" { return true }
+    target := modelsDirectory + "/" + normalized
+    stream := fopen(cstring(target), cstring("rb"))
+    if stream == nil { return false }
+    fclose(stream)
+    return true
+}
+
+func urlFilename(url string) string {
+    withoutQuery := url
+    query := strings.Index(withoutQuery, "?")
+    if query >= 0 { withoutQuery = withoutQuery[0:query] }
+    return path.Base(withoutQuery)
+}
+
+// Ensure downloads one model named by the workflow into models/. The Windows
+// curl -O option chooses the filename from the URL; when a manifest key uses a
+// different local name, the downloaded file is renamed after the transfer.
+func Ensure(filename string) bool {
+    normalized := path.Base(strings.ReplaceAll(filename, "\\", "/"))
+    if normalized == "" || normalized == "." || normalized == "Optional / embedded" { return true }
+    if IsAvailable(normalized) { return true }
+
+    url := modelURL(normalized)
+    if url == "" { return false }
+
+    system(cstring("if not exist models mkdir models"))
+    downloaded := urlFilename(url)
+    commandLine := "cd /d models && curl.exe -L -O --fail --retry 3 \"" + url + "\""
+    if system(cstring(commandLine)) != 0 { return false }
+    if downloaded == normalized { return IsAvailable(normalized) }
+
+    if rename(cstring(modelsDirectory+"/"+downloaded), cstring(modelsDirectory+"/"+normalized)) != 0 {
+        remove(cstring(modelsDirectory + "/" + downloaded))
+        return false
+    }
+    return IsAvailable(normalized)
+}
+
+func EnsureModels(filenames []string) bool {
+    for i := 0; i < len(filenames); i = i + 1 {
+        if !Ensure(filenames[i]) { return false }
+    }
+    return true
+}
+
+// PrepareModels downloads missing workflow models and reports whether the
+// caller must stop before starting the actual generation step.
+// -1 means download failure, 0 means every model was already present, and 1
+// means at least one model was downloaded successfully.
+func PrepareModels(filenames []string) int {
+    missing := false
+    for i := 0; i < len(filenames); i = i + 1 {
+        if !IsAvailable(filenames[i]) { missing = true }
+    }
+    if !EnsureModels(filenames) { return -1 }
+    if missing { return 1 }
+    return 0
+}

@@ -1,0 +1,59 @@
+package output
+
+import "std/strconv"
+import "std/strings"
+
+func system(command cstring) int
+func popen(command cstring, mode cstring) *byte
+func pclose(stream *byte) int
+func fread(buffer *byte, size int, count int, stream *byte) int
+
+const outputDirectory string = "output"
+const outputPrefix string = "renga_"
+const outputSuffix string = ".webp"
+
+func zeroPad5(value int) string {
+    text := strconv.Itoa(value)
+    for len(text) < 5 { text = "0" + text }
+    return text
+}
+
+func sequenceNumber(filename string) int {
+    name := strings.Trim(filename, " \t\r\n")
+    if !strings.HasPrefix(name, outputPrefix) || !strings.HasSuffix(name, outputSuffix) { return 0 }
+    start := len(outputPrefix)
+    end := len(name) - len(outputSuffix)
+    if end <= start || end-start != 5 { return 0 }
+    value, err := strconv.Atoi(name[start:end])
+    if err != nil { return 0 }
+    return value
+}
+
+// NextImagePath creates the output directory and returns the next sequential
+// filename after scanning existing renga_#####.webp files.
+func NextImagePath() string {
+    system(cstring("if not exist output mkdir output"))
+    stream := popen(cstring("cmd.exe /c dir /b \"output\\年賀_*.webp\" 2>nul"), cstring("r"))
+    maximum := 0
+    if stream != nil {
+        line := ""
+        buffer := make([]byte, 1)
+        for {
+            count := fread((*byte)(buffer), 1, 1, stream)
+            if count <= 0 { break }
+            if buffer[0] == byte(10) {
+                number := sequenceNumber(line)
+                if number > maximum { maximum = number }
+                line = ""
+            } else {
+                line = line + string(buffer[0])
+            }
+        }
+        if line != "" {
+            number := sequenceNumber(line)
+            if number > maximum { maximum = number }
+        }
+        pclose(stream)
+    }
+    return outputDirectory + "/" + outputPrefix + zeroPad5(maximum+1) + outputSuffix
+}

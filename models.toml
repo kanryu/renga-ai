@@ -1,0 +1,11 @@
+# Model filenames used by workflow nodes and their download locations.
+# The keys must match the filenames stored in the workflow node properties.
+
+[models]
+"Illustrious-XL-v2.0.safetensors" = "https://huggingface.co/OnomaAIResearch/Illustrious-XL-v2.0/resolve/main/Illustrious-XL-v2.0.safetensors?download=true"
+"face_yolov8m-face.safetensors" = "https://huggingface.co/deepghs/yolo-face/resolve/main/yolov8m-face/model.pt?download=true"
+
+# Anima model components
+"anima-aesthetic-v1.1.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-aesthetic-v1.1.safetensors?download=true"
+"qwen_image_vae.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true"
+"qwen_3_06b_base.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors?download=true"

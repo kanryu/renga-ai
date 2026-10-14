@@ -32,6 +32,8 @@ export component NodePanel inherits Rectangle {
     in property <color> output_pin_color: root.accent_color;
     in property <string> output_pin_label: "";
     in property <bool> show_output_pin: true;
+    in property <image> preview_image;
+    in property <bool> show_image_preview: false;
     in-out property <length> node_x: 0px;
     in-out property <length> node_y: 0px;
     in-out property <length> node_width: 230px;
@@ -61,7 +63,10 @@ export component NodePanel inherits Rectangle {
     Text { x: 16px; y: root.row_4_y - 18px; text: root.summary_label_4; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_4 != ""; }
     Text { x: 16px; y: root.row_5_y - 18px; text: root.summary_label_5; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_5 != ""; }
     Text { x: 16px; y: root.row_6_y - 18px; text: root.summary_label_6; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_6 != ""; }
-    Rectangle { x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height; background: #121214; border-radius: 4px; clip: true; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height; background: #121214; border-radius: 4px; clip: true;
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; visible: !root.show_image_preview || root.preview_image.width <= 0; }
+        Image { x: 0px; y: 0px; width: root.width - 32px; height: root.summary_line_1_height; source: root.preview_image; image-fit: contain; visible: root.show_image_preview && root.preview_image.width > 0; }
+    }
     Rectangle { x: 16px; y: root.row_2_y; width: parent.width - 32px; height: root.summary_line_2_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 2 && root.summary_line_2 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
     Rectangle { x: 16px; y: root.row_3_y; width: parent.width - 32px; height: root.summary_line_3_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 3 && root.summary_line_3 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_3; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
     Rectangle { x: 16px; y: root.row_4_y; width: parent.width - 32px; height: root.summary_line_4_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 4 && root.summary_line_4 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_4; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }

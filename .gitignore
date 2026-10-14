@@ -4,6 +4,7 @@
 /.hike/
 .*
 /models/
+/output/
 
 # Local workflow state
 /renga-workflow.json

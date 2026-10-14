@@ -2,6 +2,7 @@ package diffusion
 
 import "github.com/kanryu/hike-ai-stable-diffusion/sd"
 import _ "github.com/kanryu/hike-ai-stable-diffusion/shared"
+import "github.com/kanryu/renga-ai/pkg/modelget"
 import "std/path"
 import "std/strconv"
 import "std/strings"
@@ -13,6 +14,7 @@ const modelsDirectory string = "models"
 // repository's models directory before they reach the native package.
 type WorkflowData struct {
     CheckpointPath string
+    SeparatedModels string
     DiffusionModelPath string
     VAEPath string
     ClipLPath string
@@ -53,6 +55,18 @@ func ModelPath(value string) string {
     prefix := modelsDirectory + "/"
     if strings.HasPrefix(normalized, prefix) { return normalized }
     return prefix + path.Base(normalized)
+}
+
+// EnsureModels makes every model referenced by the workflow available before
+// the native diffusion context is initialized.
+func EnsureModels(workflow *WorkflowData) bool {
+    if workflow == nil { return false }
+    if !modelget.Ensure(workflow.CheckpointPath) { return false }
+    if workflow.SeparatedModels == "true" {
+        if !modelget.EnsureModels([]string{workflow.DiffusionModelPath, workflow.VAEPath, workflow.ClipLPath, workflow.T5XXLPath}) { return false }
+    }
+    if !modelget.Ensure(workflow.DetectorModelPath) { return false }
+    return true
 }
 
 func intValue(value string, fallback int) int {
@@ -104,6 +118,7 @@ func scheduler(value string) int {
 // detector model is configured; otherwise the original image is saved.
 func Generate(workflow *WorkflowData) bool {
     if workflow == nil { return false }
+    if !EnsureModels(workflow) { return false }
 
     contextParams := sd.ContextParams{}
     sd.InitContextParams(&contextParams)
@@ -143,7 +158,8 @@ func Generate(workflow *WorkflowData) bool {
     if !generated || images == nil || imageCount <= 0 { return false }
     defer sd.FreeImages(images, imageCount)
 
-    finalImage := images
+    var finalImage *sd.Image
+    finalImage = images
     var detailed *sd.Image
     detailedCount := 0
     detailedOK := false
@@ -170,7 +186,7 @@ func Generate(workflow *WorkflowData) bool {
     }
 
     outputPath := workflow.OutputPath
-    if outputPath == "" { outputPath = modelsDirectory + "/generated.webp" }
+    if outputPath == "" { outputPath = "output/renga_00001.webp" }
     saved := sd.SaveWebP(finalImage, outputPath, 100.0)
     if detailedOK && detailed != nil && detailedCount > 0 { sd.FreeImages(detailed, detailedCount) }
     return saved

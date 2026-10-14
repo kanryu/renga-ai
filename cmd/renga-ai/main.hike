@@ -54,8 +54,11 @@ func main() int {
             }
             if callbackName == "run_workflow" || callbackName == "AppRouter.run_workflow" {
                 puts(cstring("[Renga] workflow run: collecting node values and starting generation"))
-                if router.GenerateWorkflow() {
-                    puts(cstring("[Renga] workflow run completed: models/generated.webp"))
+                    workflowStatus := router.GenerateWorkflow()
+                    if workflowStatus == 1 {
+                        puts(cstring("[Renga] model files were downloaded; press Run again to start generation"))
+                    } else if workflowStatus == 2 {
+                        puts(cstring("[Renga] workflow run completed: output image saved"))
                 } else {
                     puts(cstring("[Renga] workflow run failed"))
                 }

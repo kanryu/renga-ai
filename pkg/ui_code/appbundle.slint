@@ -26,7 +26,7 @@ export global AppRouter {
     in-out property <length> generate_node_width: 230px;
     in-out property <length> generate_node_height: 162px;
     in-out property <length> save_node_width: 230px;
-    in-out property <length> save_node_height: 154px;
+    in-out property <length> save_node_height: 280px;
     in-out property <length> detector_node_width: 230px;
     in-out property <length> detector_node_height: 162px;
     in-out property <length> detail_node_width: 230px;
@@ -64,6 +64,8 @@ export global AppRouter {
     in-out property <string> inpaint_width: "512";
     in-out property <string> inpaint_height: "512";
     in-out property <string> inpaint_strength: "0.4";
+    in-out property <string> generated_image_path: "";
+    in-out property <image> generated_image;
     callback navigate(string);
     callback open_file(string);
     callback save_workflow();
@@ -154,6 +156,8 @@ export component NodePanel inherits Rectangle {
     in property <color> output_pin_color: root.accent_color;
     in property <string> output_pin_label: "";
     in property <bool> show_output_pin: true;
+    in property <image> preview_image;
+    in property <bool> show_image_preview: false;
     in-out property <length> node_x: 0px;
     in-out property <length> node_y: 0px;
     in-out property <length> node_width: 230px;
@@ -183,7 +187,10 @@ export component NodePanel inherits Rectangle {
     Text { x: 16px; y: root.row_4_y - 18px; text: root.summary_label_4; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_4 != ""; }
     Text { x: 16px; y: root.row_5_y - 18px; text: root.summary_label_5; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_5 != ""; }
     Text { x: 16px; y: root.row_6_y - 18px; text: root.summary_label_6; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_6 != ""; }
-    Rectangle { x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height; background: #121214; border-radius: 4px; clip: true; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
+    Rectangle { x: 16px; y: root.row_1_y; width: parent.width - 32px; height: root.summary_line_1_height; background: #121214; border-radius: 4px; clip: true;
+        Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_1; color: #e4e4e7; font-size: 12px; wrap: word-wrap; visible: !root.show_image_preview || root.preview_image.width <= 0; }
+        Image { x: 0px; y: 0px; width: root.width - 32px; height: root.summary_line_1_height; source: root.preview_image; image-fit: contain; visible: root.show_image_preview && root.preview_image.width > 0; }
+    }
     Rectangle { x: 16px; y: root.row_2_y; width: parent.width - 32px; height: root.summary_line_2_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 2 && root.summary_line_2 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
     Rectangle { x: 16px; y: root.row_3_y; width: parent.width - 32px; height: root.summary_line_3_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 3 && root.summary_line_3 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_3; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
     Rectangle { x: 16px; y: root.row_4_y; width: parent.width - 32px; height: root.summary_line_4_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 4 && root.summary_line_4 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_4; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
@@ -247,8 +254,10 @@ export component SaveImageNode inherits NodePanel {
     node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y;
     node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height;
     node_title: "Save Image"; node_kind: "Image output";
-    summary_line_1: "image: generated output"; summary_line_2: "format: WebP";
-    body_line_count: 2; input_1_label: "Image"; show_output_pin: false;
+    summary_line_1: "Generated images will be here";
+    summary_line_1_height: 220px; body_line_count: 1;
+    show_image_preview: true; preview_image: AppRouter.generated_image;
+    input_1_label: "Image"; show_output_pin: false;
     input_1_color: #65a9ff; accent_color: #65a9ff;
 }
 
@@ -749,6 +758,7 @@ export component WorkflowPage inherits Rectangle {
     in-out property <length> wire_menu_x: 0px;
     in-out property <length> wire_menu_y: 0px;
     in-out property <int> pressed_node: -1;
+    in-out property <bool> image_preview_open: false;
     property <bool> cursor_over_title:
         (drag_surface.mouse-x >= ctx_node.node_x && drag_surface.mouse-x <= ctx_node.node_x + ctx_node.width && drag_surface.mouse-y >= ctx_node.node_y && drag_surface.mouse-y <= ctx_node.node_y + 38px)
         || (drag_surface.mouse-x >= generate_node.node_x && drag_surface.mouse-x <= generate_node.node_x + generate_node.width && drag_surface.mouse-y >= generate_node.node_y && drag_surface.mouse-y <= generate_node.node_y + 38px)
@@ -1081,6 +1091,38 @@ export component WorkflowPage inherits Rectangle {
                 root.wire_menu_wire = -1;
             }
         }
+    }
+    TouchArea {
+        x: save_node.node_x + 16px;
+        y: save_node.node_y + 50px;
+        width: save_node.width - 32px;
+        height: save_node.summary_line_1_height;
+        visible: !root.image_preview_open && AppRouter.generated_image.width > 0;
+        mouse-cursor: pointer;
+        clicked => { root.image_preview_open = true; }
+    }
+    Rectangle {
+        visible: root.image_preview_open;
+        x: 0px; y: 0px; width: root.width; height: root.height;
+        background: #00000080;
+    }
+    TouchArea {
+        visible: root.image_preview_open;
+        x: 0px; y: 0px; width: root.width; height: root.height;
+        mouse-cursor: default;
+        clicked => { root.image_preview_open = false; }
+    }
+    Image {
+        visible: root.image_preview_open;
+        x: 24px; y: 24px; width: root.width - 48px; height: root.height - 48px;
+        source: AppRouter.generated_image;
+        image-fit: contain;
+    }
+    TouchArea {
+        visible: root.image_preview_open;
+        x: 24px; y: 24px; width: root.width - 48px; height: root.height - 48px;
+        mouse-cursor: pointer;
+        clicked => { root.image_preview_open = false; }
     }
     Button {
         x: parent.width - self.width - 24px;

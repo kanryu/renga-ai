@@ -23,7 +23,7 @@ export global AppRouter {
     in-out property <length> generate_node_width: 230px;
     in-out property <length> generate_node_height: 162px;
     in-out property <length> save_node_width: 230px;
-    in-out property <length> save_node_height: 154px;
+    in-out property <length> save_node_height: 280px;
     in-out property <length> detector_node_width: 230px;
     in-out property <length> detector_node_height: 162px;
     in-out property <length> detail_node_width: 230px;
@@ -61,6 +61,8 @@ export global AppRouter {
     in-out property <string> inpaint_width: "512";
     in-out property <string> inpaint_height: "512";
     in-out property <string> inpaint_strength: "0.4";
+    in-out property <string> generated_image_path: "";
+    in-out property <image> generated_image;
     callback navigate(string);
     callback open_file(string);
     callback save_workflow();

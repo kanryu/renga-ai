@@ -48,8 +48,10 @@ export component SaveImageNode inherits NodePanel {
     node_x <=> AppRouter.save_node_x; node_y <=> AppRouter.save_node_y;
     node_width <=> AppRouter.save_node_width; node_height <=> AppRouter.save_node_height;
     node_title: "Save Image"; node_kind: "Image output";
-    summary_line_1: "image: generated output"; summary_line_2: "format: WebP";
-    body_line_count: 2; input_1_label: "Image"; show_output_pin: false;
+    summary_line_1: "Generated images will be here";
+    summary_line_1_height: 220px; body_line_count: 1;
+    show_image_preview: true; preview_image: AppRouter.generated_image;
+    input_1_label: "Image"; show_output_pin: false;
     input_1_color: #65a9ff; accent_color: #65a9ff;
 }
 
