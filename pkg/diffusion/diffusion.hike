@@ -14,9 +14,9 @@ const modelsDirectory string = "models"
 // repository's models directory before they reach the native package.
 type WorkflowData struct {
     CheckpointPath string
-    SeparatedModels string
     DiffusionModelPath string
     VAEPath string
+    TextEncoderPath string
     ClipLPath string
     T5XXLPath string
     Backend string
@@ -26,6 +26,7 @@ type WorkflowData struct {
     SampleMethod string
     Scheduler string
     SampleSteps string
+    CFG string
     Eta string
     FlowShift string
     Prompt string
@@ -43,6 +44,7 @@ type WorkflowData struct {
     InpaintWidth string
     InpaintHeight string
     InpaintStrength string
+    UseDetail bool
     OutputPaths []string
 }
 
@@ -61,12 +63,13 @@ func ModelPath(value string) string {
 // the native diffusion context is initialized.
 func EnsureModels(workflow *WorkflowData) bool {
     if workflow == nil { return false }
-    if !modelget.Ensure(workflow.CheckpointPath) { return false }
-    if workflow.SeparatedModels == "true" {
-        if !modelget.EnsureModels([]string{workflow.DiffusionModelPath, workflow.VAEPath, workflow.ClipLPath, workflow.T5XXLPath}) { return false }
+    targets := make([]string, 0)
+    candidates := []string{workflow.CheckpointPath, workflow.DiffusionModelPath, workflow.VAEPath, workflow.TextEncoderPath, workflow.ClipLPath, workflow.T5XXLPath}
+    for i := 0; i < len(candidates); i++ {
+        if candidates[i] != "" { targets = append(targets, candidates[i]) }
     }
-    if !modelget.Ensure(workflow.DetectorModelPath) { return false }
-    return true
+    if workflow.UseDetail && workflow.DetectorModelPath != "" { targets = append(targets, workflow.DetectorModelPath) }
+    return modelget.EnsureModels(targets)
 }
 
 func intValue(value string, fallback int) int {
@@ -122,27 +125,24 @@ func Generate(workflow *WorkflowData) bool {
 
     contextParams := sd.ContextParams{}
     sd.InitContextParams(&contextParams)
-    contextParams.ModelPath = ModelPath(workflow.CheckpointPath)
-    contextParams.DiffusionModelPath = ModelPath(workflow.DiffusionModelPath)
-    contextParams.VAEPath = ModelPath(workflow.VAEPath)
-    contextParams.ClipLPath = ModelPath(workflow.ClipLPath)
-    contextParams.T5XXLPath = ModelPath(workflow.T5XXLPath)
+    if workflow.CheckpointPath != "" { contextParams.ModelPath = ModelPath(workflow.CheckpointPath) }
+    if workflow.DiffusionModelPath != "" { contextParams.DiffusionModelPath = ModelPath(workflow.DiffusionModelPath) }
+    if workflow.VAEPath != "" { contextParams.VAEPath = ModelPath(workflow.VAEPath) }
+    if workflow.TextEncoderPath != "" { contextParams.LLMPath = ModelPath(workflow.TextEncoderPath) }
+    if workflow.ClipLPath != "" { contextParams.ClipLPath = ModelPath(workflow.ClipLPath) }
+    if workflow.T5XXLPath != "" { contextParams.T5XXLPath = ModelPath(workflow.T5XXLPath) }
+    contextParams.DiffusionFlashAttn = workflow.DiffusionModelPath != ""
+    contextParams.AutoFit = workflow.DiffusionModelPath != ""
     contextParams.NThreads = intValue(workflow.Threads, 0)
     contextParams.WType = weightType(workflow.WType)
-    contextParams.Backend = workflow.Backend
-    contextParams.ParamsBackend = workflow.ParamsBackend
+    if workflow.Backend != "" { contextParams.Backend = workflow.Backend }
+    // An empty ParamsBackend means that the native default should remain in
+    // effect. This is how the official Anima example initializes the context.
+    if workflow.ParamsBackend != "" { contextParams.ParamsBackend = workflow.ParamsBackend }
 
     context := sd.NewContext(&contextParams)
     if context == nil { return false }
     defer context.Close()
-
-    sampleParams := sd.SampleParams{}
-    sd.InitSampleParams(&sampleParams)
-    sampleParams.SampleMethod = sampleMethod(workflow.SampleMethod)
-    sampleParams.Scheduler = scheduler(workflow.Scheduler)
-    sampleParams.SampleSteps = intValue(workflow.SampleSteps, 20)
-    sampleParams.Eta = floatValue(workflow.Eta, 0.0)
-    sampleParams.FlowShift = floatValue(workflow.FlowShift, 1.0)
 
     request := sd.ImageGenParams{}
     sd.InitImageGenParams(&request)
@@ -152,17 +152,27 @@ func Generate(workflow *WorkflowData) bool {
     request.Height = intValue(workflow.Height, 1024)
     request.BatchCount = intValue(workflow.BatchCount, 1)
     request.Seed = int64Value(workflow.Seed, -1)
-    request.SampleParams = sampleParams
+    // Keep ImageGenParams' native defaults intact and override only values
+    // explicitly supplied by the workflow.
+    request.SampleParams.SampleMethod = sampleMethod(workflow.SampleMethod)
+    if workflow.Scheduler != "" { request.SampleParams.Scheduler = scheduler(workflow.Scheduler) }
+    request.SampleParams.SampleSteps = intValue(workflow.SampleSteps, 20)
+    cfg := floatValue(workflow.CFG, 0.0)
+    if cfg > 0.0 { request.SampleParams.Guidance.TxtCFG = cfg }
+    if workflow.Eta != "" { request.SampleParams.Eta = floatValue(workflow.Eta, 0.0) }
+    if workflow.FlowShift != "" { request.SampleParams.FlowShift = floatValue(workflow.FlowShift, 1.0) }
 
     images, imageCount, generated := context.Generate(&request)
     if !generated || images == nil || imageCount <= 0 { return false }
     defer sd.FreeImages(images, imageCount)
 
     var detector *sd.Adetailer
-    detectorPath := ModelPath(workflow.DetectorModelPath)
-    if detectorPath != "" {
-        detector = sd.NewAdetailer(detectorPath, contextParams.NThreads, workflow.DetectorBackend, workflow.DetectorParamsBackend)
-        if detector != nil { defer detector.Close() }
+    if workflow.UseDetail {
+        detectorPath := ModelPath(workflow.DetectorModelPath)
+        if detectorPath != "" {
+            detector = sd.NewAdetailer(detectorPath, contextParams.NThreads, workflow.DetectorBackend, workflow.DetectorParamsBackend)
+            if detector != nil { defer detector.Close() }
+        }
     }
     if len(workflow.OutputPaths) < imageCount { return false }
 
@@ -181,7 +191,7 @@ func Generate(workflow *WorkflowData) bool {
         var detailed *sd.Image
         detailedCount := 0
         detailedOK := false
-        if detector != nil {
+        if workflow.UseDetail && detector != nil {
             detailed, detailedCount, detailedOK = detector.DetailImage(context, images[i], detailParams, &inpaint)
             if detailedOK && detailed != nil && detailedCount > 0 { finalImage = &detailed[0] }
         }

@@ -162,14 +162,14 @@ export component ContextParamsNodePage inherits ParameterNodePage {
         mode_title: "Checkpoint (bundled)";
         mode_description: "SDXL / Illustrious style checkpoint";
         selected: AppRouter.separated_models == "false";
-        choose => { AppRouter.separated_models = "false"; }
+        choose => { AppRouter.separated_models = "false"; AppRouter.backend = "diffusion=cuda0,detector=cuda0"; }
     }
     ModelSourceMode {
         x: 346px; y: 260px;
         mode_title: "Separated components";
         mode_description: "Diffusion model + VAE + text encoders";
         selected: AppRouter.separated_models == "true";
-        choose => { AppRouter.separated_models = "true"; }
+        choose => { AppRouter.separated_models = "true"; AppRouter.backend = "diffusion=cuda0,te=cuda0,vae=cuda0"; }
     }
     if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 350px; label: "checkpoint_path"; }
     if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 350px; field_key: "checkpoint_path"; value <=> AppRouter.checkpoint_path; }
@@ -179,10 +179,8 @@ export component ContextParamsNodePage inherits ParameterNodePage {
     if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 350px; field_key: "diffusion_model_path"; value <=> AppRouter.diffusion_model_path; }
     if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 390px; label: "vae_path"; }
     if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 390px; field_key: "vae_path"; value <=> AppRouter.vae_path; }
-    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "clip_l_path"; }
-    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "clip_l_path"; value <=> AppRouter.clip_l_path; }
-    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 470px; label: "t5xxl_path"; }
-    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 470px; field_key: "t5xxl_path"; value <=> AppRouter.t5xxl_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "text_encoder_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "text_encoder_path"; value <=> AppRouter.text_encoder_path; }
     EditorLabel { x: 28px; y: 510px; label: "backend"; }
     EditorField { x: 190px; y: 510px; value <=> AppRouter.backend; field_width: 470px; }
     EditorLabel { x: 28px; y: 550px; label: "threads"; }
@@ -204,6 +202,8 @@ export component SampleParamsNodePage inherits ParameterNodePage {
     EditorField { x: 190px; y: 300px; value <=> AppRouter.scheduler; field_width: 180px; }
     EditorLabel { x: 28px; y: 340px; label: "sample_steps"; }
     EditorField { x: 190px; y: 340px; value <=> AppRouter.sample_steps; field_width: 180px; }
+    EditorLabel { x: 350px; y: 380px; label: "cfg"; }
+    EditorField { x: 500px; y: 380px; value <=> AppRouter.cfg; field_width: 160px; }
     EditorLabel { x: 350px; y: 260px; label: "eta"; visible: root.show_advanced; }
     EditorField { x: 500px; y: 260px; value <=> AppRouter.eta; field_width: 160px; visible: root.show_advanced; }
     EditorLabel { x: 350px; y: 300px; label: "flow_shift"; visible: root.show_advanced; }

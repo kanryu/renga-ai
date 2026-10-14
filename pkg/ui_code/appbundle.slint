@@ -32,11 +32,12 @@ export global AppRouter {
     in-out property <length> detail_node_width: 230px;
     in-out property <length> detail_node_height: 360px;
     in-out property <string> checkpoint_path: "Illustrious-XL-v2.0.safetensors";
-    in-out property <string> diffusion_model_path: "sdxl-unet.safetensors";
+    in-out property <string> diffusion_model_path: "anima-aesthetic-v1.1.safetensors";
     in-out property <string> external_vae_path: "Optional / embedded";
-    in-out property <string> vae_path: "sdxl-vae.safetensors";
-    in-out property <string> clip_l_path: "clip_l.safetensors";
-    in-out property <string> t5xxl_path: "t5xxl_fp16.safetensors";
+    in-out property <string> vae_path: "qwen_image_vae.safetensors";
+    in-out property <string> text_encoder_path: "qwen_3_06b_base.safetensors";
+    in-out property <string> clip_l_path: "";
+    in-out property <string> t5xxl_path: "";
     in-out property <string> separated_models: "false";
     in-out property <string> backend: "diffusion=cuda0,detector=cuda0";
     in-out property <string> threads: "Auto";
@@ -46,6 +47,7 @@ export global AppRouter {
     in-out property <string> sample_method: "Euler";
     in-out property <string> scheduler: "Karras";
     in-out property <string> sample_steps: "20";
+    in-out property <string> cfg: "6.0";
     in-out property <string> eta: "0.0";
     in-out property <string> flow_shift: "1.0";
     in-out property <string> custom_sigmas: "Default";
@@ -83,6 +85,9 @@ export global WorkflowNodes {
     in-out property <bool> sample_to_generate: true;
     in-out property <bool> imggen_to_generate: true;
     in-out property <bool> generate_to_detail: true;
+    in-out property <bool> detector_to_detail: true;
+    in-out property <bool> detail_to_save: true;
+    in-out property <bool> generate_to_save: false;
     callback open_node(string);
     callback cancel_edit();
 }
@@ -154,9 +159,13 @@ export component NodePanel inherits Rectangle {
     in property <string> input_1_label: "";
     in property <string> input_2_label: "";
     in property <string> input_3_label: "";
+    in property <string> input_1_type: "";
+    in property <string> input_2_type: "";
+    in property <string> input_3_type: "";
     in property <color> accent_color;
     in property <color> output_pin_color: root.accent_color;
     in property <string> output_pin_label: "";
+    in property <string> output_pin_type: "";
     in property <bool> show_output_pin: true;
     in property <[image]> preview_images: [];
     in property <bool> show_image_preview: false;
@@ -225,10 +234,10 @@ export component LoadModelNode inherits NodePanel {
     node_x <=> AppRouter.ctx_node_x; node_y <=> AppRouter.ctx_node_y;
     node_width <=> AppRouter.ctx_node_width; node_height <=> AppRouter.ctx_node_height;
     node_title: "Load Model"; node_kind: "Struct input";
-    summary_line_1: "model: " + AppRouter.checkpoint_path;
-    summary_line_2: "threads: " + AppRouter.threads + " / " + AppRouter.wtype;
+    summary_line_1: AppRouter.separated_models == "true" ? "diffusion: " + AppRouter.diffusion_model_path : "model: " + AppRouter.checkpoint_path;
+    summary_line_2: AppRouter.separated_models == "true" ? "vae: " + AppRouter.vae_path + " / text: " + AppRouter.text_encoder_path : "threads: " + AppRouter.threads + " / " + AppRouter.wtype;
     summary_line_3: "Model context parameters"; input_count: 0;
-    output_pin_label: "Model"; accent_color: #fb923c;
+    output_pin_label: "Model"; output_pin_type: "Model"; accent_color: #fb923c;
 }
 
 export component GenerateImageNode inherits NodePanel {
@@ -239,8 +248,9 @@ export component GenerateImageNode inherits NodePanel {
     summary_line_2: "size: " + AppRouter.width + " x " + AppRouter.height;
     summary_line_3: "batch count: " + AppRouter.batch_count; input_count: 3;
     input_1_label: "Prompt"; input_2_label: "Model"; input_3_label: "Sampler";
+    input_1_type: "Prompt"; input_2_type: "Model"; input_3_type: "Sampler";
     input_1_color: #facc15; input_2_color: #fb923c; input_3_color: #a78bfa;
-    output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
+    output_pin_label: "Image"; output_pin_type: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
 }
 
 export component SamplerSchedulerNode inherits NodePanel {
@@ -248,9 +258,9 @@ export component SamplerSchedulerNode inherits NodePanel {
     node_width <=> AppRouter.sample_node_width; node_height <=> AppRouter.sample_node_height;
     node_title: "Sampler & Scheduler"; node_kind: "Struct input";
     summary_line_1: "method: " + AppRouter.sample_method;
-    summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler;
+    summary_line_2: "steps: " + AppRouter.sample_steps + " / scheduler: " + AppRouter.scheduler + " / CFG: " + AppRouter.cfg;
     summary_line_3: "Sampler parameters"; input_count: 0;
-    output_pin_label: "Sampler"; accent_color: #a78bfa;
+    output_pin_label: "Sampler"; output_pin_type: "Sampler"; accent_color: #a78bfa;
 }
 
 export component PromptNode inherits NodePanel {
@@ -261,7 +271,7 @@ export component PromptNode inherits NodePanel {
     summary_label_1: "Positive Prompt"; summary_label_2: "Negative Prompt";
     summary_line_1_height: 64px; summary_line_2_height: 64px;
     show_line_labels: true; body_line_count: 2; input_count: 0;
-    output_pin_label: "Prompt"; output_pin_color: #facc15; accent_color: #facc15;
+    output_pin_label: "Prompt"; output_pin_type: "Prompt"; output_pin_color: #facc15; accent_color: #facc15;
 }
 
 export component SaveImageNode inherits NodePanel {
@@ -271,7 +281,7 @@ export component SaveImageNode inherits NodePanel {
     summary_line_1: "Generated images will be here";
     summary_line_1_height: 220px; body_line_count: 1;
     show_image_preview: true; preview_images: AppRouter.output_images;
-    input_1_label: "Image"; show_output_pin: false;
+    input_1_label: "Image"; input_1_type: "Image"; show_output_pin: false;
     input_1_color: #65a9ff; accent_color: #65a9ff;
 }
 
@@ -282,7 +292,7 @@ export component LoadDetectorNode inherits NodePanel {
     summary_line_1: AppRouter.detector_model_path;
     summary_line_2: "backend: " + AppRouter.backend;
     summary_line_3: "Face detection model"; input_count: 0;
-    output_pin_label: "Detector"; output_pin_color: #fb923c; accent_color: #fb923c;
+    output_pin_label: "Detector"; output_pin_type: "Detector"; output_pin_color: #fb923c; accent_color: #fb923c;
 }
 
 export component DetailImageNode inherits NodePanel {
@@ -297,8 +307,9 @@ export component DetailImageNode inherits NodePanel {
     summary_line_1_height: 64px; summary_line_2_height: 64px;
     show_line_labels: true; body_line_count: 6; input_count: 2;
     input_1_label: "Image"; input_2_label: "Detector";
+    input_1_type: "Image"; input_2_type: "Detector";
     input_1_color: #65a9ff; input_2_color: #fb923c;
-    output_pin_label: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
+    output_pin_label: "Image"; output_pin_type: "Image"; output_pin_color: #65a9ff; accent_color: #65a9ff;
 }
 
 // --- views/node_pages.slint ---
@@ -463,14 +474,14 @@ export component ContextParamsNodePage inherits ParameterNodePage {
         mode_title: "Checkpoint (bundled)";
         mode_description: "SDXL / Illustrious style checkpoint";
         selected: AppRouter.separated_models == "false";
-        choose => { AppRouter.separated_models = "false"; }
+        choose => { AppRouter.separated_models = "false"; AppRouter.backend = "diffusion=cuda0,detector=cuda0"; }
     }
     ModelSourceMode {
         x: 346px; y: 260px;
         mode_title: "Separated components";
         mode_description: "Diffusion model + VAE + text encoders";
         selected: AppRouter.separated_models == "true";
-        choose => { AppRouter.separated_models = "true"; }
+        choose => { AppRouter.separated_models = "true"; AppRouter.backend = "diffusion=cuda0,te=cuda0,vae=cuda0"; }
     }
     if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 350px; label: "checkpoint_path"; }
     if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 350px; field_key: "checkpoint_path"; value <=> AppRouter.checkpoint_path; }
@@ -480,10 +491,8 @@ export component ContextParamsNodePage inherits ParameterNodePage {
     if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 350px; field_key: "diffusion_model_path"; value <=> AppRouter.diffusion_model_path; }
     if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 390px; label: "vae_path"; }
     if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 390px; field_key: "vae_path"; value <=> AppRouter.vae_path; }
-    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "clip_l_path"; }
-    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "clip_l_path"; value <=> AppRouter.clip_l_path; }
-    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 470px; label: "t5xxl_path"; }
-    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 470px; field_key: "t5xxl_path"; value <=> AppRouter.t5xxl_path; }
+    if AppRouter.separated_models == "true": EditorLabel { x: 28px; y: 430px; label: "text_encoder_path"; }
+    if AppRouter.separated_models == "true": FilePickerField { x: 190px; y: 430px; field_key: "text_encoder_path"; value <=> AppRouter.text_encoder_path; }
     EditorLabel { x: 28px; y: 510px; label: "backend"; }
     EditorField { x: 190px; y: 510px; value <=> AppRouter.backend; field_width: 470px; }
     EditorLabel { x: 28px; y: 550px; label: "threads"; }
@@ -505,6 +514,8 @@ export component SampleParamsNodePage inherits ParameterNodePage {
     EditorField { x: 190px; y: 300px; value <=> AppRouter.scheduler; field_width: 180px; }
     EditorLabel { x: 28px; y: 340px; label: "sample_steps"; }
     EditorField { x: 190px; y: 340px; value <=> AppRouter.sample_steps; field_width: 180px; }
+    EditorLabel { x: 350px; y: 380px; label: "cfg"; }
+    EditorField { x: 500px; y: 380px; value <=> AppRouter.cfg; field_width: 160px; }
     EditorLabel { x: 350px; y: 260px; label: "eta"; visible: root.show_advanced; }
     EditorField { x: 500px; y: 260px; value <=> AppRouter.eta; field_width: 160px; visible: root.show_advanced; }
     EditorLabel { x: 350px; y: 300px; label: "flow_shift"; visible: root.show_advanced; }
@@ -767,6 +778,9 @@ export component WorkflowPage inherits Rectangle {
     in-out property <bool> sample_to_generate <=> WorkflowNodes.sample_to_generate;
     in-out property <bool> imggen_to_generate <=> WorkflowNodes.imggen_to_generate;
     in-out property <bool> generate_to_detail <=> WorkflowNodes.generate_to_detail;
+    in-out property <bool> detector_to_detail <=> WorkflowNodes.detector_to_detail;
+    in-out property <bool> detail_to_save <=> WorkflowNodes.detail_to_save;
+    in-out property <bool> generate_to_save <=> WorkflowNodes.generate_to_save;
     in-out property <bool> wire_menu_visible: false;
     in-out property <int> wire_menu_wire: -1;
     in-out property <length> wire_menu_x: 0px;
@@ -797,6 +811,42 @@ export component WorkflowPage inherits Rectangle {
     GridBackground { width: parent.width; height: parent.height; }
     Text { x: 18px; y: 14px; text: "Workflow / Untitled"; color: #f5f7fa; font-size: 18px; }
     Text { x: 18px; y: 40px; text: "Click a node to edit its parameters"; color: #8f9aaa; font-size: 12px; }
+    detector_output_pin := TouchArea {
+        x: detector_node.node_x + 210px; y: detector_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.wire_dragging = true; root.wire_source = 5;
+                root.wire_start_x = detector_node.out_pin_x; root.wire_start_y = detector_node.out_pin_y;
+                root.wire_end_x = detector_node.out_pin_x; root.wire_end_y = detector_node.out_pin_y;
+            }
+        }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = detector_node.node_x + 210px + detector_output_pin.mouse-x;
+                root.wire_end_y = detector_node.node_y + 66px + detector_output_pin.mouse-y;
+            }
+        }
+    }
+    detail_output_pin := TouchArea {
+        x: detail_node.node_x + 210px; y: detail_node.node_y + 66px; width: 28px; height: 40px;
+        mouse-cursor: root.wire_menu_visible ? default : crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.wire_menu_visible = false;
+                root.wire_dragging = true; root.wire_source = 4;
+                root.wire_start_x = detail_node.out_pin_x; root.wire_start_y = detail_node.out_pin_y;
+                root.wire_end_x = detail_node.out_pin_x; root.wire_end_y = detail_node.out_pin_y;
+            }
+        }
+        moved => {
+            if root.wire_dragging {
+                root.wire_end_x = detail_node.node_x + 210px + detail_output_pin.mouse-x;
+                root.wire_end_y = detail_node.node_y + 66px + detail_output_pin.mouse-y;
+            }
+        }
+    }
     BezierWire {
         visible: root.ctx_to_generate;
         start_x: ctx_node.out_pin_x;
@@ -811,6 +861,14 @@ export component WorkflowPage inherits Rectangle {
         start_y: generate_node.out_pin_y;
         end_x: detail_node.in_pin_1_x;
         end_y: detail_node.in_pin_1_y;
+        wire_color: #65a9ff;
+    }
+    BezierWire {
+        visible: root.generate_to_save;
+        start_x: generate_node.out_pin_x;
+        start_y: generate_node.out_pin_y;
+        end_x: save_node.in_pin_1_x;
+        end_y: save_node.in_pin_1_y;
         wire_color: #65a9ff;
     }
     BezierWire {
@@ -830,7 +888,7 @@ export component WorkflowPage inherits Rectangle {
         wire_color: #a78bfa;
     }
     BezierWire {
-        visible: true;
+        visible: root.detector_to_detail;
         start_x: detector_node.out_pin_x;
         start_y: detector_node.out_pin_y;
         end_x: detail_node.in_pin_2_x;
@@ -838,7 +896,7 @@ export component WorkflowPage inherits Rectangle {
         wire_color: #fb923c;
     }
     BezierWire {
-        visible: true;
+        visible: root.detail_to_save;
         start_x: detail_node.out_pin_x;
         start_y: detail_node.out_pin_y;
         end_x: save_node.in_pin_1_x;
@@ -864,6 +922,12 @@ export component WorkflowPage inherits Rectangle {
                         root.wire_menu_wire = 3;
                     } else if root.generate_to_detail && drag_surface.mouse-x >= generate_node.out_pin_x - 12px && drag_surface.mouse-x <= detail_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (generate_node.out_pin_y < detail_node.in_pin_1_y ? generate_node.out_pin_y : detail_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (generate_node.out_pin_y > detail_node.in_pin_1_y ? generate_node.out_pin_y : detail_node.in_pin_1_y) + 14px {
                         root.wire_menu_wire = 1;
+                    } else if root.generate_to_save && drag_surface.mouse-x >= generate_node.out_pin_x - 12px && drag_surface.mouse-x <= save_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (generate_node.out_pin_y < save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (generate_node.out_pin_y > save_node.in_pin_1_y ? generate_node.out_pin_y : save_node.in_pin_1_y) + 14px {
+                        root.wire_menu_wire = 6;
+                    } else if root.detail_to_save && drag_surface.mouse-x >= detail_node.out_pin_x - 12px && drag_surface.mouse-x <= save_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (detail_node.out_pin_y < save_node.in_pin_1_y ? detail_node.out_pin_y : save_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (detail_node.out_pin_y > save_node.in_pin_1_y ? detail_node.out_pin_y : save_node.in_pin_1_y) + 14px {
+                        root.wire_menu_wire = 4;
+                    } else if root.detector_to_detail && drag_surface.mouse-x >= detector_node.out_pin_x - 12px && drag_surface.mouse-x <= detail_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (detector_node.out_pin_y < detail_node.in_pin_2_y ? detector_node.out_pin_y : detail_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (detector_node.out_pin_y > detail_node.in_pin_2_y ? detector_node.out_pin_y : detail_node.in_pin_2_y) + 14px {
+                        root.wire_menu_wire = 5;
                     } else {
                         root.wire_menu_wire = -1;
                     }
@@ -978,21 +1042,26 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.up {
                 if event.button != PointerEventButton.left { return; }
-                if root.wire_source == 0 { root.ctx_to_generate = false; }
-                if root.wire_source == 1 { root.generate_to_detail = false; }
-                if root.wire_source == 2 { root.sample_to_generate = false; }
-                if root.wire_source == 3 { root.imggen_to_generate = false; }
-                if root.wire_source == 0 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 66px && wire_surface.mouse-y <= generate_node.node_y + 106px {
+                if root.wire_source == 0 && ctx_node.output_pin_type == generate_node.input_2_type && !root.ctx_to_generate && wire_surface.mouse-x >= generate_node.in_pin_2_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_2_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_2_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_2_y + 16px {
                     root.ctx_to_generate = true;
                 }
-                if root.wire_source == 1 && wire_surface.mouse-x >= detail_node.node_x - 16px && wire_surface.mouse-x <= detail_node.node_x + 16px && wire_surface.mouse-y >= detail_node.node_y + 38px && wire_surface.mouse-y <= detail_node.node_y + 78px {
+                if root.wire_source == 1 && generate_node.output_pin_type == detail_node.input_1_type && !root.generate_to_detail && wire_surface.mouse-x >= detail_node.in_pin_1_x - 16px && wire_surface.mouse-x <= detail_node.in_pin_1_x + 16px && wire_surface.mouse-y >= detail_node.in_pin_1_y - 16px && wire_surface.mouse-y <= detail_node.in_pin_1_y + 16px {
                     root.generate_to_detail = true;
                 }
-                if root.wire_source == 2 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 94px && wire_surface.mouse-y <= generate_node.node_y + 134px {
+                if root.wire_source == 1 && generate_node.output_pin_type == save_node.input_1_type && !root.generate_to_save && !root.detail_to_save && wire_surface.mouse-x >= save_node.in_pin_1_x - 16px && wire_surface.mouse-x <= save_node.in_pin_1_x + 16px && wire_surface.mouse-y >= save_node.in_pin_1_y - 16px && wire_surface.mouse-y <= save_node.in_pin_1_y + 16px {
+                    root.generate_to_save = true;
+                }
+                if root.wire_source == 2 && sample_node.output_pin_type == generate_node.input_3_type && !root.sample_to_generate && wire_surface.mouse-x >= generate_node.in_pin_3_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_3_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_3_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_3_y + 16px {
                     root.sample_to_generate = true;
                 }
-                if root.wire_source == 3 && wire_surface.mouse-x >= generate_node.node_x - 16px && wire_surface.mouse-x <= generate_node.node_x + 16px && wire_surface.mouse-y >= generate_node.node_y + 38px && wire_surface.mouse-y <= generate_node.node_y + 78px {
+                if root.wire_source == 3 && imggen_node.output_pin_type == generate_node.input_1_type && !root.imggen_to_generate && wire_surface.mouse-x >= generate_node.in_pin_1_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_1_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_1_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_1_y + 16px {
                     root.imggen_to_generate = true;
+                }
+                if root.wire_source == 4 && detail_node.output_pin_type == save_node.input_1_type && !root.detail_to_save && !root.generate_to_save && wire_surface.mouse-x >= save_node.in_pin_1_x - 16px && wire_surface.mouse-x <= save_node.in_pin_1_x + 16px && wire_surface.mouse-y >= save_node.in_pin_1_y - 16px && wire_surface.mouse-y <= save_node.in_pin_1_y + 16px {
+                    root.detail_to_save = true;
+                }
+                if root.wire_source == 5 && detector_node.output_pin_type == detail_node.input_2_type && !root.detector_to_detail && wire_surface.mouse-x >= detail_node.in_pin_2_x - 16px && wire_surface.mouse-x <= detail_node.in_pin_2_x + 16px && wire_surface.mouse-y >= detail_node.in_pin_2_y - 16px && wire_surface.mouse-y <= detail_node.in_pin_2_y + 16px {
+                    root.detector_to_detail = true;
                 }
                 root.wire_dragging = false;
                 root.wire_source = -1;
@@ -1011,7 +1080,6 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.ctx_to_generate = false;
                 root.wire_dragging = true; root.wire_source = 0;
                 root.wire_start_x = ctx_node.out_pin_x; root.wire_start_y = ctx_node.out_pin_y;
                 root.wire_end_x = ctx_node.out_pin_x; root.wire_end_y = ctx_node.out_pin_y;
@@ -1030,7 +1098,6 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.generate_to_detail = false;
                 root.wire_dragging = true; root.wire_source = 1;
                 root.wire_start_x = generate_node.out_pin_x; root.wire_start_y = generate_node.out_pin_y;
                 root.wire_end_x = generate_node.out_pin_x; root.wire_end_y = generate_node.out_pin_y;
@@ -1049,7 +1116,6 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.sample_to_generate = false;
                 root.wire_dragging = true; root.wire_source = 2;
                 root.wire_start_x = sample_node.out_pin_x; root.wire_start_y = sample_node.out_pin_y;
                 root.wire_end_x = sample_node.out_pin_x; root.wire_end_y = sample_node.out_pin_y;
@@ -1068,7 +1134,6 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
                 root.wire_menu_visible = false;
-                root.imggen_to_generate = false;
                 root.wire_dragging = true; root.wire_source = 3;
                 root.wire_start_x = imggen_node.out_pin_x; root.wire_start_y = imggen_node.out_pin_y;
                 root.wire_end_x = imggen_node.out_pin_x; root.wire_end_y = imggen_node.out_pin_y;
@@ -1102,6 +1167,9 @@ export component WorkflowPage inherits Rectangle {
                 if root.wire_menu_wire == 1 { root.generate_to_detail = false; }
                 if root.wire_menu_wire == 2 { root.sample_to_generate = false; }
                 if root.wire_menu_wire == 3 { root.imggen_to_generate = false; }
+                if root.wire_menu_wire == 4 { root.detail_to_save = false; }
+                if root.wire_menu_wire == 5 { root.detector_to_detail = false; }
+                if root.wire_menu_wire == 6 { root.generate_to_save = false; }
                 root.wire_menu_visible = false;
                 root.wire_menu_wire = -1;
             }

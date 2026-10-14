@@ -29,11 +29,12 @@ export global AppRouter {
     in-out property <length> detail_node_width: 230px;
     in-out property <length> detail_node_height: 360px;
     in-out property <string> checkpoint_path: "Illustrious-XL-v2.0.safetensors";
-    in-out property <string> diffusion_model_path: "sdxl-unet.safetensors";
+    in-out property <string> diffusion_model_path: "anima-aesthetic-v1.1.safetensors";
     in-out property <string> external_vae_path: "Optional / embedded";
-    in-out property <string> vae_path: "sdxl-vae.safetensors";
-    in-out property <string> clip_l_path: "clip_l.safetensors";
-    in-out property <string> t5xxl_path: "t5xxl_fp16.safetensors";
+    in-out property <string> vae_path: "qwen_image_vae.safetensors";
+    in-out property <string> text_encoder_path: "qwen_3_06b_base.safetensors";
+    in-out property <string> clip_l_path: "";
+    in-out property <string> t5xxl_path: "";
     in-out property <string> separated_models: "false";
     in-out property <string> backend: "diffusion=cuda0,detector=cuda0";
     in-out property <string> threads: "Auto";
@@ -43,6 +44,7 @@ export global AppRouter {
     in-out property <string> sample_method: "Euler";
     in-out property <string> scheduler: "Karras";
     in-out property <string> sample_steps: "20";
+    in-out property <string> cfg: "6.0";
     in-out property <string> eta: "0.0";
     in-out property <string> flow_shift: "1.0";
     in-out property <string> custom_sigmas: "Default";
@@ -80,6 +82,9 @@ export global WorkflowNodes {
     in-out property <bool> sample_to_generate: true;
     in-out property <bool> imggen_to_generate: true;
     in-out property <bool> generate_to_detail: true;
+    in-out property <bool> detector_to_detail: true;
+    in-out property <bool> detail_to_save: true;
+    in-out property <bool> generate_to_save: false;
     callback open_node(string);
     callback cancel_edit();
 }
