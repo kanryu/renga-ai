@@ -13,6 +13,7 @@ const modelsDirectory string = "models"
 // Model filenames are supplied by the UI; model paths are normalized to the
 // repository's models directory before they reach the native package.
 type WorkflowData struct {
+    ModelFamily string
     CheckpointPath string
     DiffusionModelPath string
     VAEPath string
@@ -21,6 +22,8 @@ type WorkflowData struct {
     T5XXLPath string
     Backend string
     ParamsBackend string
+    DiffusionFlashAttn bool
+    AutoFit bool
     Threads string
     WType string
     SampleMethod string
@@ -131,8 +134,8 @@ func Generate(workflow *WorkflowData) bool {
     if workflow.TextEncoderPath != "" { contextParams.LLMPath = ModelPath(workflow.TextEncoderPath) }
     if workflow.ClipLPath != "" { contextParams.ClipLPath = ModelPath(workflow.ClipLPath) }
     if workflow.T5XXLPath != "" { contextParams.T5XXLPath = ModelPath(workflow.T5XXLPath) }
-    contextParams.DiffusionFlashAttn = workflow.DiffusionModelPath != ""
-    contextParams.AutoFit = workflow.DiffusionModelPath != ""
+    contextParams.DiffusionFlashAttn = workflow.DiffusionFlashAttn
+    contextParams.AutoFit = workflow.AutoFit
     contextParams.NThreads = intValue(workflow.Threads, 0)
     contextParams.WType = weightType(workflow.WType)
     if workflow.Backend != "" { contextParams.Backend = workflow.Backend }

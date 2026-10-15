@@ -1,11 +1,59 @@
-# Model filenames used by workflow nodes and their download locations.
-# The keys must match the filenames stored in the workflow node properties.
+# Model presets and their downloadable components.
 
-[models]
-"Illustrious-XL-v2.0.safetensors" = "https://huggingface.co/OnomaAIResearch/Illustrious-XL-v2.0/resolve/main/Illustrious-XL-v2.0.safetensors?download=true"
-"face_yolov8m-face.safetensors" = "https://huggingface.co/deepghs/yolo-face/resolve/main/yolov8m-face/model.pt?download=true"
+[models."SDXL Illustrious"]
+family = "SDXL"
+pipeline = "checkpoint"
+checkpoint.model = "Illustrious-XL-v2.0.safetensors"
+checkpoint.url = "https://huggingface.co/OnomaAIResearch/Illustrious-XL-v2.0/resolve/main/Illustrious-XL-v2.0.safetensors?download=true"
+params.autofit = "false"
+params.diffusion_flash_attn = "false"
+params.sample_method = "Euler"
+params.sample_steps = "20"
+params.cfg = "6.0"
+params.scheduler = ""
+params.eta = ""
+params.flow_shift = ""
 
-# Anima model components
-"anima-aesthetic-v1.1.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-aesthetic-v1.1.safetensors?download=true"
-"qwen_image_vae.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true"
-"qwen_3_06b_base.safetensors" = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors?download=true"
+[models."Anima"]
+family = "Anima"
+pipeline = "separated"
+diffusion.model = "anima-aesthetic-v1.1.safetensors"
+diffusion.url = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-aesthetic-v1.1.safetensors?download=true"
+vae.model = "qwen_image_vae.safetensors"
+vae.url = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true"
+text_encoder.model = "qwen_3_06b_base.safetensors"
+text_encoder.url = "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors?download=true"
+params.autofit = "true"
+params.diffusion_flash_attn = "true"
+params.backend = "diffusion=cuda0,te=cuda0,vae=cuda0"
+params.sample_method = "Euler"
+params.sample_steps = "20"
+params.cfg = "6.0"
+params.scheduler = ""
+params.eta = ""
+params.flow_shift = ""
+
+[models."FLUX.2 Klein 4B"]
+family = "FLUX.2"
+pipeline = "separated"
+diffusion.model = "flux-2-klein-4b-Q4_K_M.gguf"
+diffusion.url = "https://huggingface.co/unsloth/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q4_K_M.gguf?download=true"
+vae.model = "flux2-vae.safetensors"
+vae.url = "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-4b/resolve/main/split_files/vae/flux2-vae.safetensors?download=true"
+text_encoder.model = "Qwen3-4B-Q4_K_M.gguf"
+text_encoder.url = "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf?download=true"
+params.autofit = "true"
+params.diffusion_flash_attn = "false"
+params.backend = "diffusion=cuda0,te=cuda0,vae=cuda0"
+params.sample_method = "Euler"
+params.sample_steps = "4"
+params.cfg = "1.0"
+params.scheduler = ""
+params.eta = ""
+params.flow_shift = ""
+
+[models."Face Detector"]
+family = "utility"
+pipeline = "detector"
+detector.model = "face_yolov8m-face.safetensors"
+detector.url = "https://huggingface.co/deepghs/yolo-face/resolve/main/yolov8m-face/model.pt?download=true"

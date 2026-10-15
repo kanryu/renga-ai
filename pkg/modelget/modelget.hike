@@ -2,6 +2,24 @@ package modelget
 
 import "std/path"
 import "std/strings"
+import "std/maps"
+
+type ModelComponent struct {
+    Model string
+    URL string
+}
+
+type ModelSet struct {
+    Name string
+    Family string
+    Pipeline string
+    Checkpoint ModelComponent
+    Diffusion ModelComponent
+    VAE ModelComponent
+    TextEncoder ModelComponent
+    Detector ModelComponent
+    Params map[string]string
+}
 
 func fopen(filename cstring, mode cstring) *byte
 func fclose(stream *byte) int
@@ -15,6 +33,72 @@ func system(command cstring) int
 
 const modelsDirectory string = "models"
 const modelsManifest string = "models.toml"
+
+func unquote(value string) string {
+    result := strings.Trim(value, " \t\r")
+    if strings.HasPrefix(result, "\"") && strings.HasSuffix(result, "\"") {
+        return result[1:len(result)-1]
+    }
+    return result
+}
+
+func modelSetSectionName(line string) string {
+    prefix := "[models.\""
+    if !strings.HasPrefix(line, prefix) { return "" }
+    remainder := line[len(prefix):len(line)]
+    end := strings.Index(remainder, "\"]")
+    if end < 0 { return "" }
+    return remainder[0:end]
+}
+
+func storeModelSet(sets map[string]ModelSet, current ModelSet, active bool) {
+    if active && current.Family != "" { sets[current.Family] = current }
+}
+
+// LoadModelSets reads the structured [models."..."] sections from
+// models.toml. The returned map is keyed by the user-facing family value so
+// the workflow can select a preset without knowing its component filenames.
+func LoadModelSets() map[string]ModelSet {
+    sets := make(map[string]ModelSet)
+    manifest := readTextFile(modelsManifest)
+    lines := strings.Split(manifest, "\n")
+    current := ModelSet{}
+    active := false
+
+    for i := 0; i < len(lines); i = i + 1 {
+        line := strings.Trim(lines[i], " \t\r")
+        if line == "" || strings.HasPrefix(line, "#") { continue }
+        sectionName := modelSetSectionName(line)
+        if sectionName != "" {
+            storeModelSet(sets, current, active)
+            current = ModelSet{Name: sectionName, Params: make(map[string]string)}
+            active = true
+            continue
+        }
+        if !active { continue }
+        separator := strings.Index(line, "=")
+        if separator < 0 { continue }
+        key := strings.Trim(line[0:separator], " \t\r")
+        value := unquote(line[separator+1:len(line)])
+        if key == "family" { current.Family = value }
+        if key == "pipeline" { current.Pipeline = value }
+        if key == "checkpoint.model" { current.Checkpoint.Model = value }
+        if key == "checkpoint.url" { current.Checkpoint.URL = value }
+        if key == "diffusion.model" { current.Diffusion.Model = value }
+        if key == "diffusion.url" { current.Diffusion.URL = value }
+        if key == "vae.model" { current.VAE.Model = value }
+        if key == "vae.url" { current.VAE.URL = value }
+        if key == "text_encoder.model" { current.TextEncoder.Model = value }
+        if key == "text_encoder.url" { current.TextEncoder.URL = value }
+        if key == "detector.model" { current.Detector.Model = value }
+        if key == "detector.url" { current.Detector.URL = value }
+        if strings.HasPrefix(key, "params.") {
+            current.Params[key[7:len(key)]] = value
+        }
+    }
+    storeModelSet(sets, current, active)
+    return sets
+}
 
 func readTextFile(filename string) string {
     stream := fopen(cstring(filename), cstring("rb"))
@@ -35,6 +119,7 @@ func modelURL(filename string) string {
     manifest := readTextFile(modelsManifest)
     lines := strings.Split(manifest, "\n")
     wanted := path.Base(strings.ReplaceAll(filename, "\\", "/"))
+    // Preserve support for the original [models] filename = URL entries.
     for i := 0; i < len(lines); i = i + 1 {
         line := strings.Trim(lines[i], " \t\r")
         if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") { continue }
@@ -45,6 +130,31 @@ func modelURL(filename string) string {
         if strings.HasPrefix(key, "\"") && strings.HasSuffix(key, "\"") { key = key[1:len(key)-1] }
         if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") { value = value[1:len(value)-1] }
         if key == wanted { return value }
+    }
+    // Structured presets store metadata together with component pairs:
+    // diffusion.model = "..."
+    // diffusion.url = "..."
+    // Search every preset for the requested component filename.
+    for i := 0; i < len(lines); i = i + 1 {
+        line := strings.Trim(lines[i], " \t\r")
+        if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") { continue }
+        separator := strings.Index(line, "=")
+        if separator < 0 { continue }
+        key := strings.Trim(line[0:separator], " \t\r")
+        value := strings.Trim(line[separator+1:len(line)], " \t\r")
+        if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") { value = value[1:len(value)-1] }
+        if !strings.HasSuffix(key, ".model") || value != wanted { continue }
+        urlKey := key[0:len(key)-6] + ".url"
+        for j := i + 1; j < len(lines); j = j + 1 {
+            next := strings.Trim(lines[j], " \t\r")
+            if strings.HasPrefix(next, "[") { break }
+            nextSeparator := strings.Index(next, "=")
+            if nextSeparator < 0 { continue }
+            nextKey := strings.Trim(next[0:nextSeparator], " \t\r")
+            nextValue := strings.Trim(next[nextSeparator+1:len(next)], " \t\r")
+            if strings.HasPrefix(nextValue, "\"") && strings.HasSuffix(nextValue, "\"") { nextValue = nextValue[1:len(nextValue)-1] }
+            if nextKey == urlKey { return nextValue }
+        }
     }
     return ""
 }

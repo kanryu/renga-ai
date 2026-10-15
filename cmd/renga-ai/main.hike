@@ -67,6 +67,10 @@ func main() int {
                 }
                 continue
             }
+            if callbackName == "select_model_family" || callbackName == "AppRouter.select_model_family" {
+                router.ApplyModelFamily(string(callback.StringArg))
+                continue
+            }
             if callbackName == "WorkflowNodes.open_node" {
                 router.HandleNodeCallback(&callback)
                 continue

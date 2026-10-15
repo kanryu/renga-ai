@@ -35,11 +35,13 @@ export global AppRouter {
     in-out property <string> text_encoder_path: "qwen_3_06b_base.safetensors";
     in-out property <string> clip_l_path: "";
     in-out property <string> t5xxl_path: "";
+    in-out property <string> model_family: "";
     in-out property <string> separated_models: "false";
     in-out property <string> backend: "diffusion=cuda0,detector=cuda0";
     in-out property <string> threads: "Auto";
     in-out property <string> wtype: "FP16";
     in-out property <string> flash_attn: "false";
+    in-out property <string> auto_fit: "false";
     in-out property <string> max_vram: "Automatic";
     in-out property <string> sample_method: "Euler";
     in-out property <string> scheduler: "Karras";
@@ -77,6 +79,7 @@ export global AppRouter {
     callback open_file(string);
     callback save_workflow();
     callback run_workflow();
+    callback select_model_family(string);
     navigate(route) => { current_page = route; }
 }
 

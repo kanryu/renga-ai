@@ -46,6 +46,7 @@ type Router struct {
     WorkflowInitialized bool
     WorkflowStateJSON string
     PendingOutputPaths []string
+    ModelSets map[string]modelget.ModelSet
 }
 
 func NewRouter() *Router {
@@ -69,6 +70,7 @@ func NewRouter() *Router {
         WorkflowInitialized: false,
         WorkflowStateJSON: "",
         PendingOutputPaths: []string{},
+        ModelSets: make(map[string]modelget.ModelSet),
     }
     return router
 }
@@ -80,6 +82,8 @@ func (router *Router) Attach(ui *slint.Context) bool {
         return false
     }
     router.UI = ui
+    router.ModelSets = modelget.LoadModelSets()
+    puts(cstring("[Renga] model sets loaded"))
     if !router.Navigate(router.InitialRoute()) {
         return false
     }
@@ -120,8 +124,8 @@ func (router *Router) ApplyDefaultWorkflow() {
     ui.SetGlobalNumberProperty("AppRouter", "detector_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "detector_node_height", 162.0)
     ui.SetGlobalNumberProperty("AppRouter", "detail_node_width", 230.0); ui.SetGlobalNumberProperty("AppRouter", "detail_node_height", 360.0)
     ui.SetGlobalProperty("AppRouter", "checkpoint_path", "Illustrious-XL-v2.0.safetensors"); ui.SetGlobalProperty("AppRouter", "diffusion_model_path", "anima-aesthetic-v1.1.safetensors"); ui.SetGlobalProperty("AppRouter", "external_vae_path", "Optional / embedded"); ui.SetGlobalProperty("AppRouter", "vae_path", "qwen_image_vae.safetensors"); ui.SetGlobalProperty("AppRouter", "text_encoder_path", "qwen_3_06b_base.safetensors"); ui.SetGlobalProperty("AppRouter", "clip_l_path", ""); ui.SetGlobalProperty("AppRouter", "t5xxl_path", "")
-    ui.SetGlobalProperty("AppRouter", "separated_models", "false"); ui.SetGlobalProperty("AppRouter", "backend", "diffusion=cuda0,detector=cuda0")
-    ui.SetGlobalProperty("AppRouter", "threads", "Auto"); ui.SetGlobalProperty("AppRouter", "wtype", "FP16"); ui.SetGlobalProperty("AppRouter", "flash_attn", "false"); ui.SetGlobalProperty("AppRouter", "max_vram", "Automatic")
+    ui.SetGlobalProperty("AppRouter", "model_family", "SDXL"); ui.SetGlobalProperty("AppRouter", "separated_models", "false"); ui.SetGlobalProperty("AppRouter", "backend", "diffusion=cuda0,detector=cuda0")
+    ui.SetGlobalProperty("AppRouter", "threads", "Auto"); ui.SetGlobalProperty("AppRouter", "wtype", "FP16"); ui.SetGlobalProperty("AppRouter", "flash_attn", "false"); ui.SetGlobalProperty("AppRouter", "auto_fit", "false"); ui.SetGlobalProperty("AppRouter", "max_vram", "Automatic")
     ui.SetGlobalProperty("AppRouter", "sample_method", "Euler"); ui.SetGlobalProperty("AppRouter", "scheduler", "Karras"); ui.SetGlobalProperty("AppRouter", "sample_steps", "20"); ui.SetGlobalProperty("AppRouter", "cfg", "6.0"); ui.SetGlobalProperty("AppRouter", "eta", "0.0"); ui.SetGlobalProperty("AppRouter", "flow_shift", "1.0"); ui.SetGlobalProperty("AppRouter", "custom_sigmas", "Default")
     ui.SetGlobalProperty("AppRouter", "prompt", "masterpiece, best quality, highres, detailed background"); ui.SetGlobalProperty("AppRouter", "negative_prompt", "blurry, low quality"); ui.SetGlobalProperty("AppRouter", "width", "1024"); ui.SetGlobalProperty("AppRouter", "height", "1344"); ui.SetGlobalProperty("AppRouter", "batch_count", "1"); ui.SetGlobalProperty("AppRouter", "seed", "Random"); ui.SetGlobalProperty("AppRouter", "loras", "None"); ui.SetGlobalProperty("AppRouter", "hires_cache", "Default")
     ui.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", true); ui.SetGlobalBoolProperty("WorkflowNodes", "sample_to_generate", true); ui.SetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate", true); ui.SetGlobalBoolProperty("WorkflowNodes", "generate_to_detail", true); ui.SetGlobalBoolProperty("WorkflowNodes", "detector_to_detail", true); ui.SetGlobalBoolProperty("WorkflowNodes", "detail_to_save", true); ui.SetGlobalBoolProperty("WorkflowNodes", "generate_to_save", false)
@@ -159,17 +163,58 @@ func (router *Router) workflowFlag(name string) bool {
     return router.workflowValue(name) == "true"
 }
 
+func (router *Router) applyModelParams(params map[string]string) {
+    if router == nil || router.UI == nil { return }
+    value, ok := params["backend"]; if ok { router.UI.SetGlobalProperty("AppRouter", "backend", value) }
+    value, ok = params["diffusion_flash_attn"]; if ok { router.UI.SetGlobalProperty("AppRouter", "flash_attn", value) }
+    value, ok = params["autofit"]; if ok { router.UI.SetGlobalProperty("AppRouter", "auto_fit", value) }
+    value, ok = params["sample_method"]; if ok { router.UI.SetGlobalProperty("AppRouter", "sample_method", value) }
+    value, ok = params["scheduler"]; if ok { router.UI.SetGlobalProperty("AppRouter", "scheduler", value) }
+    value, ok = params["sample_steps"]; if ok { router.UI.SetGlobalProperty("AppRouter", "sample_steps", value) }
+    value, ok = params["cfg"]; if ok { router.UI.SetGlobalProperty("AppRouter", "cfg", value) }
+    value, ok = params["eta"]; if ok { router.UI.SetGlobalProperty("AppRouter", "eta", value) }
+    value, ok = params["flow_shift"]; if ok { router.UI.SetGlobalProperty("AppRouter", "flow_shift", value) }
+}
+
+// ApplyModelFamily applies the model preset selected by the Load Model node.
+// The preset map is keyed by the family shown in the UI, and at most the
+// checkpoint or three separated component model slots are populated.
+func (router *Router) ApplyModelFamily(family string) bool {
+    if router == nil || router.UI == nil { return false }
+    if len(router.ModelSets) == 0 { router.ModelSets = modelget.LoadModelSets() }
+    set, ok := router.ModelSets[family]
+    if !ok { return false }
+
+    router.UI.SetGlobalProperty("AppRouter", "model_family", family)
+    if set.Pipeline == "checkpoint" {
+        router.UI.SetGlobalProperty("AppRouter", "separated_models", "false")
+        router.UI.SetGlobalProperty("AppRouter", "checkpoint_path", set.Checkpoint.Model)
+        router.UI.SetGlobalProperty("AppRouter", "diffusion_model_path", "")
+        router.UI.SetGlobalProperty("AppRouter", "vae_path", "")
+        router.UI.SetGlobalProperty("AppRouter", "text_encoder_path", "")
+    } else {
+        router.UI.SetGlobalProperty("AppRouter", "separated_models", "true")
+        router.UI.SetGlobalProperty("AppRouter", "checkpoint_path", "")
+        router.UI.SetGlobalProperty("AppRouter", "diffusion_model_path", set.Diffusion.Model)
+        router.UI.SetGlobalProperty("AppRouter", "vae_path", set.VAE.Model)
+        router.UI.SetGlobalProperty("AppRouter", "text_encoder_path", set.TextEncoder.Model)
+    }
+    router.applyModelParams(set.Params)
+    router.normalizeSeparatedModelDefaults()
+    puts(cstring("[Renga] model set applied: " + family))
+    return true
+}
+
 func (router *Router) normalizeSeparatedModelDefaults() {
-    if router == nil || !router.workflowFlag("separated_models") { return }
-    router.UI.SetGlobalProperty("AppRouter", "backend", "diffusion=cuda0,te=cuda0,vae=cuda0")
-    if router.workflowValue("diffusion_model_path") == "sdxl-unet.safetensors" { router.UI.SetGlobalProperty("AppRouter", "diffusion_model_path", "anima-aesthetic-v1.1.safetensors") }
-    if router.workflowValue("vae_path") == "sdxl-vae.safetensors" { router.UI.SetGlobalProperty("AppRouter", "vae_path", "qwen_image_vae.safetensors") }
-    if router.workflowValue("text_encoder_path") == "" { router.UI.SetGlobalProperty("AppRouter", "text_encoder_path", "qwen_3_06b_base.safetensors") }
-    // The official Anima sample leaves these sampler fields at the native
-    // model defaults. Migrate the old UI defaults to the explicit empty form.
-    if router.workflowValue("scheduler") == "Karras" { router.UI.SetGlobalProperty("AppRouter", "scheduler", "") }
-    if router.workflowValue("eta") == "0.0" { router.UI.SetGlobalProperty("AppRouter", "eta", "") }
-    if router.workflowValue("flow_shift") == "1.0" { router.UI.SetGlobalProperty("AppRouter", "flow_shift", "") }
+    if router == nil { return }
+    if router.workflowValue("model_family") == "" {
+        if router.workflowFlag("separated_models") { router.UI.SetGlobalProperty("AppRouter", "model_family", "Anima") } else { router.UI.SetGlobalProperty("AppRouter", "model_family", "SDXL") }
+    }
+    family := router.workflowValue("model_family")
+    if family == "Anima" || family == "Other" { router.UI.SetGlobalProperty("AppRouter", "separated_models", "true") }
+    if family == "SDXL" { router.UI.SetGlobalProperty("AppRouter", "separated_models", "false") }
+    if family == "FLUX.2" { router.UI.SetGlobalProperty("AppRouter", "separated_models", "true") }
+    if !router.workflowFlag("separated_models") { return }
 }
 
 // GenerateWorkflow executes the values currently assembled by the workflow
@@ -220,6 +265,7 @@ func (router *Router) GenerateWorkflow() int {
     if batchErr != nil || batchCount <= 0 { batchCount = 1 }
     outputPaths := output.NextImagePaths(batchCount)
     request := diffusion.WorkflowData{
+        ModelFamily: router.workflowValue("model_family"),
         CheckpointPath: checkpointPath,
         DiffusionModelPath: diffusionModelPath,
         VAEPath: vaePath,
@@ -228,6 +274,8 @@ func (router *Router) GenerateWorkflow() int {
         T5XXLPath: t5xxlPath,
         Backend: backend,
         ParamsBackend: "",
+        DiffusionFlashAttn: router.workflowFlag("flash_attn"),
+        AutoFit: router.workflowFlag("auto_fit"),
         Threads: router.workflowValue("threads"),
         WType: router.workflowValue("wtype"),
         SampleMethod: router.workflowValue("sample_method"),
@@ -424,11 +472,13 @@ func (router *Router) SerializeWorkflow() string {
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "text_encoder_path"); if stringOK { json.SetValue(ctxParams, "text_encoder_path", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "clip_l_path"); if stringOK { json.SetValue(ctxParams, "clip_l_path", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "t5xxl_path"); if stringOK { json.SetValue(ctxParams, "t5xxl_path", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "model_family"); if stringOK { json.SetValue(ctxParams, "model_family", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "separated_models"); if stringOK { json.SetValue(ctxParams, "separated_models", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "backend"); if stringOK { json.SetValue(ctxParams, "backend", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "threads"); if stringOK { json.SetValue(ctxParams, "threads", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "wtype"); if stringOK { json.SetValue(ctxParams, "wtype", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "flash_attn"); if stringOK { json.SetValue(ctxParams, "flash_attn", json.NewString(valueString)) }
+    valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "auto_fit"); if stringOK { json.SetValue(ctxParams, "auto_fit", json.NewString(valueString)) }
     valueString, stringOK = router.UI.GetGlobalStringProperty("AppRouter", "max_vram"); if stringOK { json.SetValue(ctxParams, "max_vram", json.NewString(valueString)) }
     json.SetValue(ctx, "parameters", ctxParams); json.AppendValue(nodes, ctx)
 
@@ -625,11 +675,13 @@ func (router *Router) LoadWorkflowContent(content string) bool {
             value = params.Get("text_encoder_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "text_encoder_path", value.AsString()) }
             value = params.Get("clip_l_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "clip_l_path", value.AsString()) }
             value = params.Get("t5xxl_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "t5xxl_path", value.AsString()) }
+            value = params.Get("model_family"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "model_family", value.AsString()) }
             value = params.Get("separated_models"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "separated_models", value.AsString()) }
             value = params.Get("backend"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "backend", value.AsString()) }
             value = params.Get("threads"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "threads", value.AsString()) }
             value = params.Get("wtype"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "wtype", value.AsString()) }
             value = params.Get("flash_attn"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flash_attn", value.AsString()) }
+            value = params.Get("auto_fit"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "auto_fit", value.AsString()) }
             value = params.Get("max_vram"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "max_vram", value.AsString()) }
         }
         if nodeID == "sample-1" {
@@ -716,11 +768,13 @@ func (router *Router) LoadLegacyWorkflow() bool {
         value = params.Get("text_encoder_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "text_encoder_path", value.AsString()) }
         value = params.Get("clip_l_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "clip_l_path", value.AsString()) }
         value = params.Get("t5xxl_path"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "t5xxl_path", value.AsString()) }
+        value = params.Get("model_family"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "model_family", value.AsString()) }
         value = params.Get("separated_models"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "separated_models", value.AsString()) }
         value = params.Get("backend"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "backend", value.AsString()) }
         value = params.Get("threads"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "threads", value.AsString()) }
         value = params.Get("wtype"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "wtype", value.AsString()) }
         value = params.Get("flash_attn"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "flash_attn", value.AsString()) }
+        value = params.Get("auto_fit"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "auto_fit", value.AsString()) }
         value = params.Get("max_vram"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "max_vram", value.AsString()) }
         value = params.Get("sample_method"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "sample_method", value.AsString()) }
         value = params.Get("scheduler"); if value != nil { router.UI.SetGlobalProperty("AppRouter", "scheduler", value.AsString()) }

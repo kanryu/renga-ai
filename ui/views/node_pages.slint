@@ -143,6 +143,22 @@ component ModelSourceMode inherits Rectangle {
     TouchArea { clicked => { root.choose(); } }
 }
 
+component ModelFamilyMode inherits Rectangle {
+    in property <string> mode_title;
+    in property <string> mode_description;
+    in property <bool> selected: false;
+    callback choose;
+    width: 126px;
+    height: 68px;
+    background: root.selected ? #3d618b : #29313d;
+    border-width: 1px;
+    border-color: root.selected ? #9acbff : #465264;
+    border-radius: 6px;
+    Text { x: 8px; y: 10px; width: 110px; text: root.mode_title; color: #f5f7fa; font-size: 12px; font-weight: 700; }
+    Text { x: 8px; y: 34px; width: 110px; text: root.mode_description; color: #aeb7c6; font-size: 9px; wrap: word-wrap; }
+    TouchArea { clicked => { root.choose(); } }
+}
+
 component ParameterNodePage inherits NodePage {
     in-out property <bool> show_advanced: false;
     in property <string> section_title: "Standard parameters";
@@ -156,20 +172,41 @@ export component ContextParamsNodePage inherits ParameterNodePage {
     callback browse_file(string);
     node_title: "Load Model"; node_kind: "Model context parameters";
     node_description: "Choose whether the renderer uses a bundled checkpoint or separate model components.";
-    section_title: "Model source";
-    ModelSourceMode {
+    section_title: "AI model family";
+    ModelFamilyMode {
         x: 28px; y: 260px;
-        mode_title: "Checkpoint (bundled)";
-        mode_description: "SDXL / Illustrious style checkpoint";
-        selected: AppRouter.separated_models == "false";
-        choose => { AppRouter.separated_models = "false"; AppRouter.backend = "diffusion=cuda0,detector=cuda0"; }
+        mode_title: "SDXL";
+        mode_description: "Checkpoint-based anime / image models";
+        selected: AppRouter.model_family == "SDXL";
+        choose => { AppRouter.select_model_family("SDXL"); }
     }
-    ModelSourceMode {
-        x: 346px; y: 260px;
-        mode_title: "Separated components";
-        mode_description: "Diffusion model + VAE + text encoders";
-        selected: AppRouter.separated_models == "true";
-        choose => { AppRouter.separated_models = "true"; AppRouter.backend = "diffusion=cuda0,te=cuda0,vae=cuda0"; }
+    ModelFamilyMode {
+        x: 160px; y: 260px;
+        mode_title: "Anima";
+        mode_description: "Separated diffusion, VAE, and text encoder";
+        selected: AppRouter.model_family == "Anima";
+        choose => { AppRouter.select_model_family("Anima"); }
+    }
+    ModelFamilyMode {
+        x: 292px; y: 260px;
+        mode_title: "FLUX.2";
+        mode_description: "Separated diffusion / VAE / text";
+        selected: AppRouter.model_family == "FLUX.2";
+        choose => { AppRouter.select_model_family("FLUX.2"); }
+    }
+    ModelFamilyMode {
+        x: 424px; y: 260px;
+        mode_title: "Krea 2";
+        mode_description: "Krea 2 model family";
+        selected: AppRouter.model_family == "Krea 2";
+        choose => { AppRouter.select_model_family("Krea 2"); }
+    }
+    ModelFamilyMode {
+        x: 556px; y: 260px;
+        mode_title: "Other";
+        mode_description: "Manual configuration";
+        selected: AppRouter.model_family == "Other";
+        choose => { AppRouter.select_model_family("Other"); }
     }
     if AppRouter.separated_models == "false": EditorLabel { x: 28px; y: 350px; label: "checkpoint_path"; }
     if AppRouter.separated_models == "false": FilePickerField { x: 190px; y: 350px; field_key: "checkpoint_path"; value <=> AppRouter.checkpoint_path; }
