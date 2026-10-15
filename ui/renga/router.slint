@@ -67,6 +67,12 @@ export global AppRouter {
     in-out property <[image]> output_images: [];
     in-out property <bool> image_preview_open: false;
     in-out property <int> image_preview_index: 0;
+    in-out property <bool> workflow_running: false;
+    in-out property <string> workflow_stage: "Ready";
+    in-out property <int> workflow_step: 0;
+    in-out property <int> workflow_steps: 1;
+    in-out property <int> workflow_overall_step: 0;
+    in-out property <int> workflow_overall_steps: 100;
     callback navigate(string);
     callback open_file(string);
     callback save_workflow();

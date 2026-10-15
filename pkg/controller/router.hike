@@ -5,11 +5,24 @@ import "std/encoding/json"
 import "github.com/kanryu/renga-ai/pkg/diffusion"
 import "github.com/kanryu/renga-ai/pkg/modelget"
 import "github.com/kanryu/renga-ai/pkg/output"
+import "github.com/kanryu/hike-ai-stable-diffusion/sd"
 import "std/strconv"
+import "std/strings"
+import "std/time"
 
 extern func puts(text cstring) int
 
 const workflowStatePath string = "renga-workflow.json"
+var concurrent() {
+    workflowDone int
+    workflowResult int
+    workflowProgressLogSecond int64
+    workflowNativePhase int
+    workflowNativeLastStep int
+    workflowNativeLastSteps int
+    workflowOperationKind string
+    workflowOperationResetPending int
+}
 
 // Router owns one controller for every page and applies the same lifecycle
 // transition that the Knuckle example performs in its JavaScript router.
@@ -32,6 +45,7 @@ type Router struct {
     UI *slint.Context
     WorkflowInitialized bool
     WorkflowStateJSON string
+    PendingOutputPaths []string
 }
 
 func NewRouter() *Router {
@@ -54,6 +68,7 @@ func NewRouter() *Router {
         UI: nil,
         WorkflowInitialized: false,
         WorkflowStateJSON: "",
+        PendingOutputPaths: []string{},
     }
     return router
 }
@@ -162,6 +177,8 @@ func (router *Router) normalizeSeparatedModelDefaults() {
 // generates the image, applies ADetailer, and saves models/generated.webp.
 func (router *Router) GenerateWorkflow() int {
     if router == nil || router.UI == nil { return -1 }
+    running, runningOK := router.UI.GetGlobalBoolProperty("AppRouter", "workflow_running")
+    if runningOK && running { return -2 }
     backend := router.workflowValue("backend")
     separatedModels := router.workflowFlag("separated_models")
     detectorBackend := backend
@@ -189,9 +206,15 @@ func (router *Router) GenerateWorkflow() int {
     modelFiles := []string{}
     if useDetail { modelFiles = append(modelFiles, router.workflowValue("detector_model_path")) }
     modelFiles = append(modelFiles, checkpointPath, diffusionModelPath, vaePath, textEncoderPath, clipLPath, t5xxlPath)
+    router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", true)
+    router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Preparing model files")
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_step", 0.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_steps", 1.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_step", 0.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_steps", 100.0)
     modelStatus := modelget.PrepareModels(modelFiles)
-    if modelStatus < 0 { return -1 }
-    if modelStatus > 0 { return 1 }
+    if modelStatus < 0 { router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", false); router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Model preparation failed"); return -1 }
+    if modelStatus > 0 { router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", false); router.UI.SetGlobalProperty("AppRouter", "Models downloaded; press Run again"); return 1 }
 
     batchCount, batchErr := strconv.Atoi(router.workflowValue("batch_count"))
     if batchErr != nil || batchCount <= 0 { batchCount = 1 }
@@ -231,18 +254,126 @@ func (router *Router) GenerateWorkflow() int {
         UseDetail: useDetail,
         OutputPaths: outputPaths,
     }
-    if !diffusion.Generate(&request) { return -1 }
-    router.UI.SetGlobalProperty("AppRouter", "generated_image_path", outputPaths[0])
-    generatedImages := slint.NewImageArrayValue(outputPaths)
-    if generatedImages == nil {
-        puts(cstring("[Renga] generated image array could not be loaded into Slint"))
+    router.PendingOutputPaths = outputPaths
+    workflowDone = 0
+    workflowResult = -1
+    workflowProgressLogSecond = -1
+    workflowNativePhase = 0
+    workflowNativeLastStep = 0
+    workflowNativeLastSteps = 0
+    workflowOperationKind = ""
+    workflowOperationResetPending = 0
+    router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", true)
+    router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Generating images")
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_step", 0.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_steps", 1.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_step", 5.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_steps", 100.0)
+    Async(func() {
+        if diffusion.Generate(&request) { workflowResult = 2 } else { workflowResult = -1 }
+        workflowDone = 1
+    })
+    return 0
+}
+
+// PollWorkflow advances the UI-side progress display while the diffusion
+// worker is running. The native progress callback reports sampling steps;
+// workflow_overall_step represents the larger pipeline stages.
+func (router *Router) PollWorkflow() int {
+    if router == nil || router.UI == nil { return 0 }
+    running, ok := router.UI.GetGlobalBoolProperty("AppRouter", "workflow_running")
+    if !ok || !running { return 0 }
+    progress := sd.CurrentProgress()
+    nowSecond := time.Now().Unix()
+    if progress.Steps > 0 {
+        previousStep := workflowNativeLastStep
+        previousSteps := workflowNativeLastSteps
+        router.UI.SetGlobalNumberProperty("AppRouter", "workflow_step", float64(progress.Step))
+        router.UI.SetGlobalNumberProperty("AppRouter", "workflow_steps", float64(progress.Steps))
+        if workflowNativeLastSteps > 0 && (progress.Steps != workflowNativeLastSteps || progress.Step < workflowNativeLastStep) {
+            workflowNativePhase = workflowNativePhase + 1
+        }
+        workflowNativeLastStep = progress.Step
+        workflowNativeLastSteps = progress.Steps
+        operation := strings.ToLower(sd.LastLog())
+        operationKind := ""
+        if strings.Contains(operation, "sample") || strings.Contains(operation, "denois") || strings.Contains(operation, "diffus") || strings.Contains(operation, "unet") || strings.Contains(operation, "anima") {
+            operationKind = "diffusion"
+        } else if strings.Contains(operation, "vae") || strings.Contains(operation, "decode") {
+            operationKind = "vae"
+        } else if strings.Contains(operation, "detail") || strings.Contains(operation, "detect") || strings.Contains(operation, "inpaint") {
+            operationKind = "detail"
+        } else if strings.Contains(operation, "encode") || strings.Contains(operation, "webp") || strings.Contains(operation, "save") || strings.Contains(operation, "released") {
+            operationKind = "save"
+        } else if strings.Contains(operation, "load") || strings.Contains(operation, "model") || strings.Contains(operation, "context") || strings.Contains(operation, "text") || strings.Contains(operation, "clip") {
+            operationKind = "loading"
+        }
+        effectiveStep := progress.Step
+        if operationKind != "" && operationKind != workflowOperationKind {
+            workflowOperationKind = operationKind
+            workflowOperationResetPending = 1
+        }
+        if workflowOperationResetPending != 0 {
+            if progress.Steps != previousSteps || progress.Step < previousStep {
+                workflowOperationResetPending = 0
+            } else {
+                effectiveStep = 0
+            }
+        }
+        phaseProgress := effectiveStep * 100 / progress.Steps
+        candidateOverall := -1.0
+        if operationKind == "diffusion" {
+            candidateOverall = float64(20 + phaseProgress * 60 / 100)
+            router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Generating images")
+        } else if operationKind == "vae" {
+            candidateOverall = float64(80 + phaseProgress * 15 / 100)
+            router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Decoding images")
+        } else if operationKind == "detail" {
+            candidateOverall = float64(80 + phaseProgress * 15 / 100)
+            router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Detailing images")
+        } else if operationKind == "save" {
+            candidateOverall = float64(95 + phaseProgress * 4 / 100)
+            router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Finishing images")
+        } else if operationKind == "loading" {
+            candidateOverall = float64(5 + phaseProgress * 15 / 100)
+            router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Preparing model files")
+        }
+        if candidateOverall < 0.0 {
+            candidateOverall = -1.0
+        }
+        currentOverall, currentOverallOK := router.UI.GetGlobalNumberProperty("AppRouter", "workflow_overall_step")
+        if candidateOverall >= 0.0 && (!currentOverallOK || candidateOverall > currentOverall) {
+            router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_step", candidateOverall)
+        }
+    }
+    if nowSecond != workflowProgressLogSecond {
+        workflowProgressLogSecond = nowSecond
+        stage, stageOK := router.UI.GetGlobalStringProperty("AppRouter", "workflow_stage")
+        overall, overallOK := router.UI.GetGlobalNumberProperty("AppRouter", "workflow_overall_step")
+        if !stageOK { stage = "unknown" }
+        if !overallOK { overall = 0.0 }
+        puts(cstring("[Renga] progress: stage=" + stage + " operation=" + sd.LastLog() + " native=" + strconv.Itoa(progress.Step) + "/" + strconv.Itoa(progress.Steps) + " overall=" + strconv.Itoa(int(overall)) + "%"))
+    }
+    if workflowDone == 0 { return 1 }
+    if workflowResult != 2 {
+        router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Generation failed")
+        router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_step", 0.0)
+        puts(cstring("[Renga] progress: stage=Generation failed phase=" + strconv.Itoa(workflowNativePhase + 1) + " native=" + strconv.Itoa(progress.Step) + "/" + strconv.Itoa(progress.Steps) + " overall=0%"))
+        router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", false)
         return -1
     }
+    router.UI.SetGlobalProperty("AppRouter", "workflow_stage", "Images saved")
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_step", 1.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_steps", 1.0)
+    router.UI.SetGlobalNumberProperty("AppRouter", "workflow_overall_step", 100.0)
+    puts(cstring("[Renga] progress: stage=Images saved phase=" + strconv.Itoa(workflowNativePhase + 1) + " native=" + strconv.Itoa(progress.Step) + "/" + strconv.Itoa(progress.Steps) + " overall=100%"))
+    router.UI.SetGlobalBoolProperty("AppRouter", "workflow_running", false)
+    if len(router.PendingOutputPaths) == 0 { return -1 }
+    router.UI.SetGlobalProperty("AppRouter", "generated_image_path", router.PendingOutputPaths[0])
+    generatedImages := slint.NewImageArrayValue(router.PendingOutputPaths)
+    if generatedImages == nil { return -1 }
     defer generatedImages.Close()
-    if !router.UI.SetGlobalPropertyValue("AppRouter", "output_images", generatedImages) {
-        puts(cstring("[Renga] generated image array property update failed"))
-        return -1
-    }
+    if !router.UI.SetGlobalPropertyValue("AppRouter", "output_images", generatedImages) { return -1 }
     return 2
 }
 

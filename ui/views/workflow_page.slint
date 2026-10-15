@@ -585,6 +585,45 @@ export component WorkflowPage inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.image_preview_open = false; }
     }
+    Rectangle {
+        visible: AppRouter.workflow_running;
+        x: 18px;
+        y: parent.height - 92px;
+        width: parent.width - 36px;
+        height: 72px;
+        background: #20242cdd;
+        border-width: 1px;
+        border-color: #3f4652;
+        border-radius: 6px;
+        Text {
+            x: 12px; y: 8px; width: 260px; height: 18px;
+            text: AppRouter.workflow_stage;
+            color: #e5e7eb; font-size: 12px;
+        }
+        Text {
+            x: 280px; y: 8px; width: 120px; height: 18px;
+            text: AppRouter.workflow_step + " / " + AppRouter.workflow_steps;
+            color: #9ca3af; font-size: 11px;
+            horizontal-alignment: right;
+        }
+        Rectangle { x: 12px; y: 28px; width: parent.width - 24px; height: 8px; background: #11151b; border-radius: 4px;
+            Rectangle { x: 0px; width: parent.width * (AppRouter.workflow_steps > 0 ? AppRouter.workflow_step / AppRouter.workflow_steps : 0); height: 100%; background: #60a5fa; border-radius: 4px; }
+        }
+        Text {
+            x: 12px; y: 43px; width: 260px; height: 18px;
+            text: "Overall progress";
+            color: #9ca3af; font-size: 11px;
+        }
+        Text {
+            x: 280px; y: 43px; width: 120px; height: 18px;
+            text: AppRouter.workflow_overall_step + "%";
+            color: #9ca3af; font-size: 11px;
+            horizontal-alignment: right;
+        }
+        Rectangle { x: 12px; y: 62px; width: parent.width - 24px; height: 8px; background: #11151b; border-radius: 4px;
+            Rectangle { x: 0px; width: parent.width * (AppRouter.workflow_overall_steps > 0 ? AppRouter.workflow_overall_step / AppRouter.workflow_overall_steps : 0); height: 100%; background: #a78bfa; border-radius: 4px; }
+        }
+    }
     Button {
         x: parent.width - self.width - 24px;
         y: 18px;

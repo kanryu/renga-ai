@@ -143,6 +143,9 @@ func Generate(workflow *WorkflowData) bool {
     context := sd.NewContext(&contextParams)
     if context == nil { return false }
     defer context.Close()
+    sd.SetProgressPolling(true)
+    sd.SetLogPolling(true)
+    sd.ResetProgress()
 
     request := sd.ImageGenParams{}
     sd.InitImageGenParams(&request)
