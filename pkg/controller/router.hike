@@ -109,8 +109,8 @@ func (router *Router) Attach(ui *slint.Context) bool {
 
 func (router *Router) ApplyDefaultWorkflow() {
     ui := router.UI
-    ui.SetGlobalNumberProperty("AppRouter", "ctx_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "ctx_node_y", 300.0)
-    ui.SetGlobalNumberProperty("AppRouter", "sample_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "sample_node_y", 500.0)
+    ui.SetGlobalNumberProperty("AppRouter", "ctx_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "ctx_node_y", 500.0)
+    ui.SetGlobalNumberProperty("AppRouter", "sample_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "sample_node_y", 300.0)
     ui.SetGlobalNumberProperty("AppRouter", "imggen_node_x", 40.0); ui.SetGlobalNumberProperty("AppRouter", "imggen_node_y", 70.0)
     ui.SetGlobalNumberProperty("AppRouter", "generate_node_x", 400.0); ui.SetGlobalNumberProperty("AppRouter", "generate_node_y", 220.0)
     ui.SetGlobalNumberProperty("AppRouter", "save_node_x", 1100.0); ui.SetGlobalNumberProperty("AppRouter", "save_node_y", 365.0)
@@ -554,11 +554,11 @@ func (router *Router) SerializeWorkflow() string {
     connections := json.NewArray()
     ctxWire, ctxWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate")
     if ctxWireOK && ctxWire {
-        connection := json.NewObject(); json.SetValue(connection, "from", json.NewString("ctx-1:output-1")); json.SetValue(connection, "to", json.NewString("generate-1:input-2")); json.AppendValue(connections, connection)
+        connection := json.NewObject(); json.SetValue(connection, "from", json.NewString("ctx-1:output-1")); json.SetValue(connection, "to", json.NewString("generate-1:input-3")); json.AppendValue(connections, connection)
     }
     sampleWire, sampleWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "sample_to_generate")
     if sampleWireOK && sampleWire {
-        connection := json.NewObject(); json.SetValue(connection, "from", json.NewString("sample-1:output-1")); json.SetValue(connection, "to", json.NewString("generate-1:input-3")); json.AppendValue(connections, connection)
+        connection := json.NewObject(); json.SetValue(connection, "from", json.NewString("sample-1:output-1")); json.SetValue(connection, "to", json.NewString("generate-1:input-2")); json.AppendValue(connections, connection)
     }
     imageWire, imageWireOK := router.UI.GetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate")
     if imageWireOK && imageWire {
@@ -640,8 +640,8 @@ func (router *Router) LoadWorkflowContent(content string) bool {
             if from == nil || to == nil { continue }
             source := from.AsString()
             target := to.AsString()
-            if source == "ctx-1:output-1" && target == "generate-1:input-2" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", true) }
-            if source == "sample-1:output-1" && target == "generate-1:input-3" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "sample_to_generate", true) }
+            if source == "ctx-1:output-1" && target == "generate-1:input-3" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "ctx_to_generate", true) }
+            if source == "sample-1:output-1" && target == "generate-1:input-2" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "sample_to_generate", true) }
             if source == "image-gen-1:output-1" && target == "generate-1:input-1" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "imggen_to_generate", true) }
             if source == "generate-1:output-1" && target == "detail-1:input-1" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "generate_to_detail", true) }
             if source == "detector-1:output-1" && target == "detail-1:input-2" { router.UI.SetGlobalBoolProperty("WorkflowNodes", "detector_to_detail", true) }

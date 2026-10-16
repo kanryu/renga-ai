@@ -238,8 +238,8 @@ export component WorkflowPage inherits Rectangle {
         visible: root.ctx_to_generate;
         start_x: ctx_node.out_pin_x;
         start_y: ctx_node.out_pin_y;
-        end_x: generate_node.in_pin_2_x;
-        end_y: generate_node.in_pin_2_y;
+        end_x: generate_node.in_pin_3_x;
+        end_y: generate_node.in_pin_3_y;
         wire_color: #fb923c;
     }
     BezierWire {
@@ -270,8 +270,8 @@ export component WorkflowPage inherits Rectangle {
         visible: root.sample_to_generate;
         start_x: sample_node.out_pin_x;
         start_y: sample_node.out_pin_y;
-        end_x: generate_node.in_pin_3_x;
-        end_y: generate_node.in_pin_3_y;
+        end_x: generate_node.in_pin_2_x;
+        end_y: generate_node.in_pin_2_y;
         wire_color: #a78bfa;
     }
     BezierWire {
@@ -301,9 +301,9 @@ export component WorkflowPage inherits Rectangle {
                     // The four current wires are routed between these node
                     // bounding boxes. This hit test deliberately includes a
                     // small margin so the thin Bezier stroke is easy to hit.
-                    if root.ctx_to_generate && drag_surface.mouse-x >= ctx_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (ctx_node.out_pin_y < generate_node.in_pin_2_y ? ctx_node.out_pin_y : generate_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (ctx_node.out_pin_y > generate_node.in_pin_2_y ? ctx_node.out_pin_y : generate_node.in_pin_2_y) + 14px {
+                    if root.ctx_to_generate && drag_surface.mouse-x >= ctx_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_3_x + 12px && drag_surface.mouse-y >= (ctx_node.out_pin_y < generate_node.in_pin_3_y ? ctx_node.out_pin_y : generate_node.in_pin_3_y) - 14px && drag_surface.mouse-y <= (ctx_node.out_pin_y > generate_node.in_pin_3_y ? ctx_node.out_pin_y : generate_node.in_pin_3_y) + 14px {
                         root.wire_menu_wire = 0;
-                    } else if root.sample_to_generate && drag_surface.mouse-x >= sample_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_3_x + 12px && drag_surface.mouse-y >= (sample_node.out_pin_y < generate_node.in_pin_3_y ? sample_node.out_pin_y : generate_node.in_pin_3_y) - 14px && drag_surface.mouse-y <= (sample_node.out_pin_y > generate_node.in_pin_3_y ? sample_node.out_pin_y : generate_node.in_pin_3_y) + 14px {
+                    } else if root.sample_to_generate && drag_surface.mouse-x >= sample_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_2_x + 12px && drag_surface.mouse-y >= (sample_node.out_pin_y < generate_node.in_pin_2_y ? sample_node.out_pin_y : generate_node.in_pin_2_y) - 14px && drag_surface.mouse-y <= (sample_node.out_pin_y > generate_node.in_pin_2_y ? sample_node.out_pin_y : generate_node.in_pin_2_y) + 14px {
                         root.wire_menu_wire = 2;
                     } else if root.imggen_to_generate && drag_surface.mouse-x >= imggen_node.out_pin_x - 12px && drag_surface.mouse-x <= generate_node.in_pin_1_x + 12px && drag_surface.mouse-y >= (imggen_node.out_pin_y < generate_node.in_pin_1_y ? imggen_node.out_pin_y : generate_node.in_pin_1_y) - 14px && drag_surface.mouse-y <= (imggen_node.out_pin_y > generate_node.in_pin_1_y ? imggen_node.out_pin_y : generate_node.in_pin_1_y) + 14px {
                         root.wire_menu_wire = 3;
@@ -429,7 +429,7 @@ export component WorkflowPage inherits Rectangle {
         pointer-event(event) => {
             if event.kind == PointerEventKind.up {
                 if event.button != PointerEventButton.left { return; }
-                if root.wire_source == 0 && ctx_node.output_pin_type == generate_node.input_2_type && !root.ctx_to_generate && wire_surface.mouse-x >= generate_node.in_pin_2_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_2_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_2_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_2_y + 16px {
+                if root.wire_source == 0 && ctx_node.output_pin_type == generate_node.input_3_type && !root.ctx_to_generate && wire_surface.mouse-x >= generate_node.in_pin_3_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_3_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_3_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_3_y + 16px {
                     root.ctx_to_generate = true;
                 }
                 if root.wire_source == 1 && generate_node.output_pin_type == detail_node.input_1_type && !root.generate_to_detail && wire_surface.mouse-x >= detail_node.in_pin_1_x - 16px && wire_surface.mouse-x <= detail_node.in_pin_1_x + 16px && wire_surface.mouse-y >= detail_node.in_pin_1_y - 16px && wire_surface.mouse-y <= detail_node.in_pin_1_y + 16px {
@@ -438,7 +438,7 @@ export component WorkflowPage inherits Rectangle {
                 if root.wire_source == 1 && generate_node.output_pin_type == save_node.input_1_type && !root.generate_to_save && !root.detail_to_save && wire_surface.mouse-x >= save_node.in_pin_1_x - 16px && wire_surface.mouse-x <= save_node.in_pin_1_x + 16px && wire_surface.mouse-y >= save_node.in_pin_1_y - 16px && wire_surface.mouse-y <= save_node.in_pin_1_y + 16px {
                     root.generate_to_save = true;
                 }
-                if root.wire_source == 2 && sample_node.output_pin_type == generate_node.input_3_type && !root.sample_to_generate && wire_surface.mouse-x >= generate_node.in_pin_3_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_3_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_3_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_3_y + 16px {
+                if root.wire_source == 2 && sample_node.output_pin_type == generate_node.input_2_type && !root.sample_to_generate && wire_surface.mouse-x >= generate_node.in_pin_2_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_2_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_2_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_2_y + 16px {
                     root.sample_to_generate = true;
                 }
                 if root.wire_source == 3 && imggen_node.output_pin_type == generate_node.input_1_type && !root.imggen_to_generate && wire_surface.mouse-x >= generate_node.in_pin_1_x - 16px && wire_surface.mouse-x <= generate_node.in_pin_1_x + 16px && wire_surface.mouse-y >= generate_node.in_pin_1_y - 16px && wire_surface.mouse-y <= generate_node.in_pin_1_y + 16px {
