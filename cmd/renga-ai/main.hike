@@ -79,6 +79,14 @@ func main() int {
                 router.CancelWorkflowEdit()
                 continue
             }
+            if callbackName == "WorkflowNodes.close_node" {
+                router.CloseWorkflowNode(string(callback.StringArg))
+                continue
+            }
+            if callbackName == "WorkflowNodes.add_node" {
+                router.AddWorkflowNode(string(callback.StringArg))
+                continue
+            }
             router.HandleCallback(&callback)
         }
     }

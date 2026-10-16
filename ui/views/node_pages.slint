@@ -1,5 +1,5 @@
 import { Button, LineEdit, TextEdit } from "std-widgets.slint";
-import { AppRouter } from "../renga/router.slint";
+import { AppRouter, WorkflowNodes } from "../renga/router.slint";
 
 component NodePage inherits Rectangle {
     in property <string> node_title;
@@ -254,9 +254,11 @@ export component ImageGenParamsNodePage inherits ParameterNodePage {
     node_description: "Set the positive and negative prompts for image generation.";
     section_title: "Prompt text";
     EditorLabel { x: 28px; y: 260px; label: "Positive Prompt"; height: 92px; }
-    MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt; }
+    if WorkflowNodes.selected_id == "image-gen-2": MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt2; }
+    if WorkflowNodes.selected_id != "image-gen-2": MultilineEditor { x: 190px; y: 260px; value <=> AppRouter.prompt; }
     EditorLabel { x: 28px; y: 366px; label: "Negative Prompt"; height: 92px; }
-    MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt; }
+    if WorkflowNodes.selected_id == "image-gen-2": MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt2; }
+    if WorkflowNodes.selected_id != "image-gen-2": MultilineEditor { x: 190px; y: 366px; value <=> AppRouter.negative_prompt; }
 }
 
 export component LoadDetectorNodePage inherits ParameterNodePage {
@@ -288,17 +290,23 @@ export component DetailImageNodePage inherits ProcessNodePage {
     api_signature: "sd.DetailImage(ctx, image, adetailer_params, inpaint_request) -> images";
     Text { x: 28px; y: 360px; text: "Inpaint parameters"; color: #f5f7fa; font-size: 15px; }
     EditorLabel { x: 28px; y: 392px; label: "width"; }
-    EditorField { x: 190px; y: 392px; value <=> AppRouter.inpaint_width; field_width: 180px; }
+    if WorkflowNodes.selected_id == "detail-2": EditorField { x: 190px; y: 392px; value <=> AppRouter.inpaint_width2; field_width: 180px; }
+    if WorkflowNodes.selected_id != "detail-2": EditorField { x: 190px; y: 392px; value <=> AppRouter.inpaint_width; field_width: 180px; }
     EditorLabel { x: 390px; y: 392px; label: "height"; }
-    EditorField { x: 500px; y: 392px; value <=> AppRouter.inpaint_height; field_width: 160px; }
+    if WorkflowNodes.selected_id == "detail-2": EditorField { x: 500px; y: 392px; value <=> AppRouter.inpaint_height2; field_width: 160px; }
+    if WorkflowNodes.selected_id != "detail-2": EditorField { x: 500px; y: 392px; value <=> AppRouter.inpaint_height; field_width: 160px; }
     EditorLabel { x: 28px; y: 432px; label: "strength"; }
-    EditorField { x: 190px; y: 432px; value <=> AppRouter.inpaint_strength; field_width: 180px; }
+    if WorkflowNodes.selected_id == "detail-2": EditorField { x: 190px; y: 432px; value <=> AppRouter.inpaint_strength2; field_width: 180px; }
+    if WorkflowNodes.selected_id != "detail-2": EditorField { x: 190px; y: 432px; value <=> AppRouter.inpaint_strength; field_width: 180px; }
     EditorLabel { x: 28px; y: 472px; label: "detail prompt"; height: 52px; }
-    MultilineEditor { x: 190px; y: 472px; value <=> AppRouter.detail_prompt; }
+    if WorkflowNodes.selected_id == "detail-2": MultilineEditor { x: 190px; y: 472px; value <=> AppRouter.detail_prompt2; }
+    if WorkflowNodes.selected_id != "detail-2": MultilineEditor { x: 190px; y: 472px; value <=> AppRouter.detail_prompt; }
     EditorLabel { x: 28px; y: 578px; label: "negative prompt"; height: 52px; }
-    MultilineEditor { x: 190px; y: 578px; value <=> AppRouter.detail_negative_prompt; }
+    if WorkflowNodes.selected_id == "detail-2": MultilineEditor { x: 190px; y: 578px; value <=> AppRouter.detail_negative_prompt2; }
+    if WorkflowNodes.selected_id != "detail-2": MultilineEditor { x: 190px; y: 578px; value <=> AppRouter.detail_negative_prompt; }
     EditorLabel { x: 28px; y: 684px; label: "extra AD args"; }
-    EditorField { x: 190px; y: 684px; value <=> AppRouter.detector_extra_args; field_width: 470px; }
+    if WorkflowNodes.selected_id == "detail-2": EditorField { x: 190px; y: 684px; value <=> AppRouter.detector_extra_args2; field_width: 470px; }
+    if WorkflowNodes.selected_id != "detail-2": EditorField { x: 190px; y: 684px; value <=> AppRouter.detector_extra_args; field_width: 470px; }
 }
 
 export component GenerateImageNodePage inherits ProcessNodePage {

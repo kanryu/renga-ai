@@ -1,7 +1,8 @@
-import { AppRouter } from "../../renga/router.slint";
+import { AppRouter, WorkflowNodes } from "../../renga/router.slint";
 
 export component NodePanel inherits Rectangle {
     in property <string> node_title;
+    in property <string> node_id;
     in property <string> node_kind;
     in property <string> summary_line_1: "";
     in property <string> summary_line_2: "";
@@ -66,7 +67,13 @@ export component NodePanel inherits Rectangle {
     property <length> preview_tile_height: root.summary_line_1_height / root.preview_rows;
     x: root.node_x; y: root.node_y; width: root.node_width; height: root.node_height;
     background: #202024; border-width: 1px; border-color: #3f3f46; border-radius: 8px;
-    Rectangle { x: 0px; y: 0px; width: 100%; height: 38px; background: root.accent_color; border-radius: 8px; Text { x: 14px; y: 9px; text: root.node_title; color: #ffffff; font-size: 15px; font-weight: 700; } }
+    Rectangle { x: 0px; y: 0px; width: 100%; height: 38px; background: root.accent_color; border-radius: 8px;
+        Text { x: 14px; y: 9px; text: root.node_title; color: #ffffff; font-size: 15px; font-weight: 700; }
+        if WorkflowNodes.selected_id == root.node_id: Rectangle { x: parent.width - 34px; y: 5px; width: 28px; height: 28px; background: #00000055; border-radius: 5px;
+            Text { text: "×"; color: #ffffff; font-size: 19px; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { WorkflowNodes.close_node(root.node_id); } }
+        }
+    }
     Text { x: 16px; y: root.row_1_y - 18px; text: root.summary_label_1; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_1 != ""; }
     Text { x: 16px; y: root.row_2_y - 18px; text: root.summary_label_2; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_2 != ""; }
     Text { x: 16px; y: root.row_3_y - 18px; text: root.summary_label_3; color: #a1a1aa; font-size: 11px; visible: root.show_line_labels && root.summary_label_3 != ""; }
@@ -82,7 +89,7 @@ export component NodePanel inherits Rectangle {
             height: root.preview_tile_height;
             visible: root.show_image_preview;
             Image { width: parent.width; height: parent.height; source: image; image-fit: contain; }
-            TouchArea { mouse-cursor: pointer; clicked => { AppRouter.image_preview_index = index; AppRouter.image_preview_open = true; } }
+            TouchArea { mouse-cursor: pointer; clicked => { AppRouter.image_preview_index = index; AppRouter.image_preview_source = root.node_id == "save-webp-2" ? "secondary" : "primary"; AppRouter.image_preview_open = true; } }
         }
     }
     Rectangle { x: 16px; y: root.row_2_y; width: parent.width - 32px; height: root.summary_line_2_height; background: #121214; border-radius: 4px; clip: true; visible: root.body_line_count >= 2 && root.summary_line_2 != ""; Text { x: 8px; y: 5px; width: parent.width - 16px; height: parent.height - 10px; text: root.summary_line_2; color: #e4e4e7; font-size: 12px; wrap: word-wrap; } }
